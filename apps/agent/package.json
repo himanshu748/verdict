@@ -1,0 +1,31 @@
+{
+  "name": "@verdict/agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Verdict's localhost TrueForge sidecar integration.",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "server": "HOST=127.0.0.1 SQLITE_PATH=.trueforge.sqlite trueforge --port 8790",
+    "setup": "tsx --env-file=.env src/setup-cli.ts"
+  },
+  "dependencies": {
+    "@truefoundry/trueforge": "0.1.4",
+    "@truefoundry/trueforge-sdk": "0.1.3"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.1",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}
