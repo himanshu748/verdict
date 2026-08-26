@@ -14,6 +14,37 @@ const approvalRequired = {
 } satisfies TrueForgeApi.ToolApprovalRequiredEvent;
 
 describe("turn event projection", () => {
+  it("starts a resumed turn with empty assistant text", () => {
+    let projection = projectTurnEvent(createVerdictProjection("session-1"), {
+      type: "model.message.delta",
+      id: "event-old-message",
+      createdAt: "2026-08-25T00:00:00.000Z",
+      threadId: "thread-root",
+      content: "Prior turn response.",
+    });
+
+    projection = projectTurnEvent(projection, {
+      type: "turn.created",
+      id: "event-resumed-turn",
+      createdAt: "2026-08-25T00:00:01.000Z",
+      turnId: "turn-2",
+      threadId: "thread-root",
+      previousTurnId: "turn-1",
+      state: { status: "running" },
+    });
+    expect(projection.assistantText).toBe("");
+
+    projection = projectTurnEvent(projection, {
+      type: "model.message.delta",
+      id: "event-new-message",
+      createdAt: "2026-08-25T00:00:02.000Z",
+      threadId: "thread-root",
+      content: "Resumed turn response.",
+    });
+
+    expect(projection.assistantText).toBe("Resumed turn response.");
+  });
+
   it("projects dynamic thread creation from observed events", () => {
     const projection = projectTurnEvent(createVerdictProjection("session-1"), {
       type: "thread.created",

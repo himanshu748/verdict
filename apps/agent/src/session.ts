@@ -258,6 +258,7 @@ export function projectTurnEvent(
     case "turn.created":
       return {
         ...projection,
+        assistantText: "",
         error: null,
         modelToolCalls: [],
         pendingApprovals: [],
