@@ -4,10 +4,20 @@
 
 Verdict is an evidence-first reproduction agent for intermittent software failures. It searches a bounded condition space, records every valid run and stops before any public write until a human approves the exact action.
 
+Built for the WeMakeDevs Agent Harness Hackathon. The implementation and its review history are preserved in [PR #1](https://github.com/himanshu748/verdict/pull/1), including Qodo's findings, remediations and resolved review threads.
+
+## Three-act workflow
+
+1. **Hunter** models a bounded condition matrix and preserves every valid, partial and unresolved observation.
+2. **Surgeon** narrows history to a defensible suspect range, promoting it to a runtime boundary only when execution establishes polarity.
+3. **Insurance** defines the regression plan and stops at an exact approval gate before any reviewed publication workflow can run.
+
+Agents investigate and deterministic reducers decide. The maintainer controls the only public write.
+
 ## What works today
 
 - A deterministic evidence protocol for valid, duplicate and mixed-run rejection
-- A TrueForge sidecar configuration with bounded Hunter and Surgeon subagent instructions
+- A TrueForge sidecar configuration with bounded Hunter, Surgeon and Insurance instructions
 - A read-only GitHub MCP surface with one approval-required workflow-dispatch tool
 - A versioned conceptual demo for TrueForge issue #417, clearly separated from live execution
 - Reducer-derived simulated reproduction views and a static-diff suspect range
@@ -24,6 +34,13 @@ VERDICT_SCENARIO=SNAPSHOT_REGISTRATION VERDICT_REQUEST_BUDGET_MS=750 VERDICT_UPS
 ```
 
 That proposed parameterized timeout fixture has not been added to the existing file or run by Verdict.
+
+## Review evidence
+
+- [Qodo's review summary](https://github.com/himanshu748/verdict/pull/1#issuecomment-5407889215) was updated through the final reviewed commit
+- All six Qodo review threads were resolved before merge
+- GitHub CI runs lint, typecheck, tests and the production build from a clean checkout
+- GitGuardian checks the pull request for exposed secrets
 
 ## Workspace
 
