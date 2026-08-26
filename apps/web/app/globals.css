@@ -435,7 +435,7 @@ button {
   border-right: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
   border-bottom: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
   border-radius: 0;
-  background: var(--canvas);
+  background: color-mix(in srgb, var(--surface) 84%, var(--canvas));
   cursor: pointer;
   isolation: isolate;
   text-align: left;
@@ -451,11 +451,11 @@ button {
 
 .exposure-frame:hover .exposure-texture,
 .exposure-frame[aria-pressed="true"] .exposure-texture {
-  opacity: 0.88;
+  opacity: 1;
 }
 
 .exposure-frame[aria-pressed="true"] {
-  background: var(--surface);
+  background: color-mix(in srgb, var(--active) 7%, var(--surface));
 }
 
 .exposure-frame::after {
@@ -464,8 +464,8 @@ button {
   z-index: 0;
   background: linear-gradient(
     to bottom,
-    color-mix(in srgb, var(--canvas) 48%, transparent),
-    color-mix(in srgb, var(--canvas) 78%, transparent)
+    color-mix(in srgb, var(--canvas) 12%, transparent),
+    color-mix(in srgb, var(--canvas) 58%, transparent)
   );
   content: "";
   pointer-events: none;
@@ -475,36 +475,73 @@ button {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background-image: url("/contact-sheet-texture.webp");
-  background-repeat: no-repeat;
-  background-size: 400% 300%;
-  opacity: 0.52;
+  overflow: hidden;
+  background-image:
+    linear-gradient(
+      to bottom,
+      transparent 49.5%,
+      color-mix(in srgb, var(--signal) 24%, transparent) 49.5% 50.5%,
+      transparent 50.5%
+    ),
+    repeating-linear-gradient(
+      to right,
+      transparent 0 17px,
+      color-mix(in srgb, var(--line) 64%, transparent) 17px 18px,
+      transparent 18px 36px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0 31px,
+      color-mix(in srgb, var(--line) 52%, transparent) 31px 32px
+    );
+  opacity: 0.68;
   transition: opacity 180ms ease-out;
 }
 
+.exposure-signal {
+  position: absolute;
+  inset: 18% 8% 22%;
+  display: flex;
+  align-items: center;
+  gap: clamp(2px, 0.28vw, 5px);
+}
+
+.exposure-signal i {
+  display: block;
+  min-width: 2px;
+  max-width: 6px;
+  flex: 1 1 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--signal) 74%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--canvas) 45%, transparent);
+}
+
 .state-not-reproduced .exposure-texture {
-  opacity: 0.22;
+  opacity: 0.3;
 }
 
 .state-weak-signal .exposure-texture {
-  opacity: 0.38;
+  opacity: 0.5;
 }
 
 .state-partial .exposure-texture {
-  opacity: 0.6;
+  opacity: 0.76;
 }
 
 .state-pinned .exposure-texture {
-  opacity: 0.9;
+  opacity: 1;
 }
 
 .state-running .exposure-texture {
-  opacity: 0.32;
+  opacity: 0.56;
 }
 
 .state-unresolved .exposure-texture {
-  filter: grayscale(0.82);
-  opacity: 0.2;
+  opacity: 0.36;
+}
+
+.state-unresolved .exposure-signal i {
+  background: color-mix(in srgb, var(--error) 72%, transparent);
 }
 
 .frame-topline,
@@ -609,6 +646,7 @@ button {
   display: none;
 }
 
+.runtime-section,
 .evidence-section,
 .method-section,
 .approval-section,
@@ -616,6 +654,100 @@ button {
   max-width: 1480px;
   margin: 0 auto;
   border-inline: 1px solid color-mix(in srgb, var(--line) 54%, transparent);
+}
+
+.runtime-section {
+  display: grid;
+  padding: clamp(72px, 9vw, 132px) clamp(24px, 6vw, 92px);
+  grid-template-columns: minmax(300px, 0.78fr) minmax(560px, 1.22fr);
+  align-items: start;
+  gap: clamp(54px, 8vw, 120px);
+  border-top: 1px solid color-mix(in srgb, var(--line) 64%, transparent);
+}
+
+.runtime-copy h2 {
+  max-width: 650px;
+  margin: 0;
+  font-size: clamp(2.45rem, 4.6vw, 4.7rem);
+  font-weight: 620;
+  letter-spacing: -0.052em;
+  line-height: 1.02;
+}
+
+.runtime-copy > p:not(.runtime-note) {
+  max-width: 550px;
+  margin: 26px 0 0;
+  color: var(--muted-text);
+  font-size: 1.08rem;
+}
+
+.runtime-note {
+  max-width: 540px;
+  margin: 32px 0 0;
+  padding-left: 16px;
+  border-left: 2px solid var(--signal);
+  color: var(--muted-text);
+  font-size: 0.88rem;
+}
+
+.runtime-note strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text);
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.runtime-flow {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.runtime-flow li {
+  display: grid;
+  min-height: 112px;
+  padding: 22px 0;
+  grid-template-columns: minmax(150px, 0.72fr) minmax(230px, 1.28fr) auto;
+  align-items: center;
+  gap: 28px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.runtime-flow li:last-child {
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.runtime-flow li > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.runtime-flow span {
+  color: var(--muted-text);
+  font-family: var(--font-data);
+  font-size: 0.63rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.runtime-flow strong {
+  color: var(--signal);
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+
+.runtime-flow p {
+  max-width: 500px;
+  margin: 0;
+  color: var(--muted-text);
+  font-size: 0.92rem;
+}
+
+.runtime-flow svg {
+  color: var(--signal);
 }
 
 .evidence-section {
@@ -1848,12 +1980,14 @@ button {
   }
 
   .evidence-section,
+  .runtime-section,
   .method-section,
   .approval-section {
     grid-template-columns: 1fr;
   }
 
   .evidence-intro,
+  .runtime-copy,
   .method-heading,
   .approval-copy {
     max-width: 760px;
@@ -2229,6 +2363,7 @@ button {
     grid-column: 1 / -1;
   }
 
+  .runtime-section,
   .evidence-section,
   .method-section,
   .approval-section,
@@ -2236,6 +2371,7 @@ button {
     border-inline: 0;
   }
 
+  .runtime-section,
   .evidence-section,
   .method-section,
   .approval-section {
@@ -2243,6 +2379,7 @@ button {
     gap: 42px;
   }
 
+  .runtime-copy h2,
   .evidence-intro h2,
   .method-heading h2,
   .approval-copy h2,
@@ -2252,6 +2389,17 @@ button {
 
   .evidence-paper {
     padding: 20px;
+  }
+
+  .runtime-flow li {
+    min-height: 0;
+    padding: 22px 0;
+    grid-template-columns: minmax(112px, 0.7fr) minmax(0, 1.3fr);
+    gap: 12px 18px;
+  }
+
+  .runtime-flow svg {
+    display: none;
   }
 
   .evidence-paper dl > div,

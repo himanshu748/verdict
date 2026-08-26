@@ -21,11 +21,12 @@
 The public page follows this order:
 
 1. State the promise and expose a working condition matrix in the first viewport.
-2. Show how one issue becomes a bounded investigation contract.
-3. Trace a selected condition to its command and schema-valid simulated run records.
-4. Show that partial, weak, unresolved and not-reproduced outcomes remain honest results.
-5. Explain the read-only default and the approval boundary.
-6. Invite the visitor to inspect the complete simulated fixture case.
+2. Show the product contract from GitHub issue to bounded experiment, evidence packet and reviewable verdict.
+3. Show how one issue becomes a bounded investigation contract.
+4. Trace a selected condition to its command and schema-valid simulated run records.
+5. Show that partial, weak, unresolved and not-reproduced outcomes remain honest results.
+6. Explain the read-only default and the approval boundary.
+7. Invite the visitor to inspect the complete simulated fixture case.
 
 The product case shell follows this order:
 

@@ -45,10 +45,10 @@ export const metadata: Metadata = {
     template: "%s | Verdict",
   },
   description:
-    "Turn an intermittent issue into a bounded investigation, structured evidence and an approval-gated handoff.",
+    "Turn a flaky GitHub issue into reproducible conditions, a commit-level suspect range and an approval-gated regression plan.",
   openGraph: {
     description:
-      "Turn an intermittent issue into a bounded investigation, structured evidence and an approval-gated handoff.",
+      "Turn a flaky GitHub issue into reproducible conditions, a commit-level suspect range and an approval-gated regression plan.",
     siteName: "Verdict",
     title: "Bugs are innocent until reproduced.",
     type: "website",
@@ -56,7 +56,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     description:
-      "Turn an intermittent issue into a bounded investigation, structured evidence and an approval-gated handoff.",
+      "Turn a flaky GitHub issue into reproducible conditions, a commit-level suspect range and an approval-gated regression plan.",
     title: "Verdict | Evidence-first bug reproduction",
   },
 };
