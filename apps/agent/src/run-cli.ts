@@ -14,6 +14,7 @@ import {
   startVerdictInvestigation,
   type VerdictEventProjection,
 } from "./session.js";
+import { sanitizeTerminalField } from "./terminal.js";
 
 function printObservedEvent(
   projection: VerdictEventProjection,
@@ -21,14 +22,14 @@ function printObservedEvent(
 ): void {
   if (event.type === "thread.created") {
     console.log(
-      `[subagent:start] ${event.agentInfo.name} (${event.threadId}) ${event.title}`,
+      `[subagent:start] ${sanitizeTerminalField(event.agentInfo.name)} (${sanitizeTerminalField(event.threadId)}) ${sanitizeTerminalField(event.title)}`,
     );
   } else if (event.type === "thread.done") {
     const thread = projection.threads.find(
       (candidate) => candidate.threadId === event.threadId,
     );
     console.log(
-      `[subagent:${thread?.status ?? "done"}] ${thread?.name ?? event.title} (${event.threadId})`,
+      `[subagent:${thread?.status ?? "done"}] ${sanitizeTerminalField(thread?.name ?? event.title)} (${sanitizeTerminalField(event.threadId)})`,
     );
   } else if (event.type === "tool.approval_required") {
     console.log(

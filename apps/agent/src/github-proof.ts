@@ -606,6 +606,11 @@ export async function confirmWorkflowProof(
         );
       }
       candidateRunId = run.id;
+      if (run.runAttempt !== 1) {
+        throw new Error(
+          "The nonce-bound run is not the first workflow attempt and cannot prove a fresh approval.",
+        );
+      }
       if (run.headSha !== baseline.targetHeadSha) {
         throw new Error(
           "The nonce-bound workflow run does not match the pre-approval target commit.",

@@ -231,6 +231,23 @@ describe("GitHub workflow proof verification", () => {
     ).rejects.toThrow("does not match the pre-approval target commit");
   });
 
+  it("rejects a rerun because it was not created by a fresh approval", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({
+        workflow_runs: [workflowRun({ run_attempt: 2 })],
+      }),
+    );
+
+    await expect(
+      confirmWorkflowProof(token, target, baseline, sourceIssue, {
+        fetchImpl,
+        maxPolls: 1,
+        pollIntervalMs: 1,
+      }),
+    ).rejects.toThrow("first workflow attempt");
+    expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+
   it("reports a completed failed workflow without looking for a PR", async () => {
     const fetchImpl = vi.fn(async () =>
       jsonResponse({

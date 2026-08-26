@@ -1,5 +1,9 @@
 import { randomBytes } from "node:crypto";
-import type { TrueForge, TrueForgeApi } from "@truefoundry/trueforge-sdk";
+import type {
+  BaseRequestOptions,
+  TrueForge,
+  TrueForgeApi,
+} from "@truefoundry/trueforge-sdk";
 import { GITHUB_MCP_NAME, VERDICT_AGENT_NAME } from "./policy.js";
 
 export type VerdictTurnStatus =
@@ -738,11 +742,16 @@ async function streamVerdictTurn(
   previousTurnId: string,
   initial: VerdictEventProjection = createVerdictProjection(sessionId),
   onProjection?: ProjectionListener,
+  requestOptions?: Pick<BaseRequestOptions, "maxRetries">,
 ): Promise<VerdictEventProjection> {
-  const stream = await client.sessions.createTurnStream(sessionId, {
-    input,
-    previousTurnId,
-  });
+  const stream = await client.sessions.createTurnStream(
+    sessionId,
+    {
+      input,
+      previousTurnId,
+    },
+    requestOptions,
+  );
 
   return consumeTurnStream(stream, initial, onProjection);
 }
@@ -817,6 +826,7 @@ export async function approveVerdictWorkflow(
     pausedTurnId,
     { ...projection, pendingApprovals: [], status: "running" },
     onProjection,
+    { maxRetries: 0 },
   );
 }
 
@@ -834,5 +844,6 @@ export async function denyVerdictApprovals(
     pausedTurnId,
     { ...projection, pendingApprovals: [], status: "running" },
     onProjection,
+    { maxRetries: 0 },
   );
 }

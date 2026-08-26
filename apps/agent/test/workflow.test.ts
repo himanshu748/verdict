@@ -39,6 +39,9 @@ describe("approved proof workflow", () => {
   it("isolates publication from checkout, dependencies and repository code", () => {
     const publishJob = workflow.split("  publish-proof:\n")[1];
 
+    expect(publishJob).toContain(
+      "if: needs.verify.result == 'success' && github.run_attempt == 1",
+    );
     expect(publishJob).toContain("needs: verify");
     expect(publishJob).toContain("contents: write");
     expect(publishJob).toContain("pull-requests: write");

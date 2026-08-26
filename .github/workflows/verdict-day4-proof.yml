@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   verify:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && github.run_attempt == 1
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -59,7 +59,7 @@ jobs:
         run: pnpm --filter @verdict/agent test
 
   publish-proof:
-    if: needs.verify.result == 'success'
+    if: needs.verify.result == 'success' && github.run_attempt == 1
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 5

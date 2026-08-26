@@ -98,16 +98,21 @@ function createApprovalProjection(
   return projection;
 }
 
-function createCapturingClient(
-  requests: Array<{ input: TrueForgeApi.TurnInputItem[]; previousTurnId: string }>,
-): TrueForge {
+interface CapturedTurnRequest {
+  input: TrueForgeApi.TurnInputItem[];
+  previousTurnId: string;
+  requestOptions: { maxRetries?: number } | undefined;
+}
+
+function createCapturingClient(requests: CapturedTurnRequest[]): TrueForge {
   return {
     sessions: {
       createTurnStream: async (
         _sessionId: string,
         request: { input: TrueForgeApi.TurnInputItem[]; previousTurnId: string },
+        requestOptions?: { maxRetries?: number },
       ) => {
-        requests.push(request);
+        requests.push({ ...request, requestOptions });
         return (async function* emptyStream() {})();
       },
     },
@@ -333,10 +338,7 @@ describe("workflow approval policy", () => {
 
 describe("approval turn binding", () => {
   it("resumes an approved workflow from the exact paused turn", async () => {
-    const requests: Array<{
-      input: TrueForgeApi.TurnInputItem[];
-      previousTurnId: string;
-    }> = [];
+    const requests: CapturedTurnRequest[] = [];
     const projection = createApprovalProjection();
 
     await approveVerdictWorkflow(
@@ -356,6 +358,7 @@ describe("approval turn binding", () => {
           },
         ],
         previousTurnId: "turn-paused",
+        requestOptions: { maxRetries: 0 },
       },
     ]);
   });
@@ -385,10 +388,7 @@ describe("approval turn binding", () => {
   });
 
   it("resumes a denial from the exact paused turn", async () => {
-    const requests: Array<{
-      input: TrueForgeApi.TurnInputItem[];
-      previousTurnId: string;
-    }> = [];
+    const requests: CapturedTurnRequest[] = [];
     const projection = createApprovalProjection();
 
     await denyVerdictApprovals(
@@ -398,6 +398,7 @@ describe("approval turn binding", () => {
     );
 
     expect(requests[0]?.previousTurnId).toBe("turn-paused");
+    expect(requests[0]?.requestOptions).toEqual({ maxRetries: 0 });
   });
 
   it("rejects denial when the projection is not paused", async () => {
