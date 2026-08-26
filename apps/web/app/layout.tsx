@@ -26,10 +26,39 @@ const themeScript = `
   })();
 `;
 
+const configuredSiteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  process.env.VERCEL_PROJECT_PRODUCTION_URL ??
+  process.env.VERCEL_URL ??
+  "http://localhost:3000";
+const metadataBase = new URL(
+  configuredSiteUrl.startsWith("http://") || configuredSiteUrl.startsWith("https://")
+    ? configuredSiteUrl
+    : `https://${configuredSiteUrl}`,
+);
+
 export const metadata: Metadata = {
-  title: "Verdict | Evidence-first bug reproduction",
+  applicationName: "Verdict",
+  metadataBase,
+  title: {
+    default: "Verdict | Evidence-first bug reproduction",
+    template: "%s | Verdict",
+  },
   description:
-    "Turn an intermittent issue into tested evidence and an approval-gated handoff.",
+    "Turn an intermittent issue into a bounded investigation, structured evidence and an approval-gated handoff.",
+  openGraph: {
+    description:
+      "Turn an intermittent issue into a bounded investigation, structured evidence and an approval-gated handoff.",
+    siteName: "Verdict",
+    title: "Bugs are innocent until reproduced.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    description:
+      "Turn an intermittent issue into a bounded investigation, structured evidence and an approval-gated handoff.",
+    title: "Verdict | Evidence-first bug reproduction",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

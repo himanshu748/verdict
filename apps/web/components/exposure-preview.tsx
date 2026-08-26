@@ -50,8 +50,8 @@ export function ExposurePreview() {
   return (
     <section className="exposure-preview" aria-label="Interactive sample condition matrix">
       <div className="preview-heading">
-        <span>Run exposures (12)</span>
-        <span>Sample case</span>
+        <span>Generated exposures (12)</span>
+        <span>Conceptual fixture</span>
       </div>
 
       <div className="exposure-desktop">
@@ -60,7 +60,7 @@ export function ExposurePreview() {
             const isSelected = exposure.id === selected.id;
             return (
               <motion.button
-                aria-label={`Condition ${exposure.id}, ${exposureStateLabel[exposure.state]}, ${exposure.matched} of ${exposure.total} observed`}
+                aria-label={`Generated condition ${exposure.id}, ${exposureStateLabel[exposure.state]}, ${exposure.matched} of ${exposure.total} generated records matched`}
                 aria-pressed={isSelected}
                 className={`exposure-frame state-${exposure.state}`}
                 initial={reduceMotion ? false : { opacity: 0.28 }}
@@ -91,30 +91,24 @@ export function ExposurePreview() {
 
       <div className="exposure-mobile">
         <div
-          aria-labelledby={`condition-tab-${selected.id}`}
           className={`mobile-selected state-${selected.state}`}
-          id="condition-panel"
-          role="tabpanel"
         >
           <FrameTexture exposure={selected} />
           <div className="mobile-selected-copy">
             <span>Selected exposure {selected.id}</span>
             <strong>{exposureStateLabel[selected.state]}</strong>
             <code>{selected.environment}</code>
-            <span>{selected.matched} of {selected.total} observed runs</span>
+            <span>{selected.matched} of {selected.total} generated records</span>
           </div>
         </div>
-        <div aria-label="Other conditions" className="exposure-strip" role="tablist">
+        <div aria-label="Choose a condition" className="exposure-strip">
           {sampleExposures.map((exposure) => (
             <button
               aria-label={`Select condition ${exposure.id}`}
-              aria-controls="condition-panel"
-              aria-selected={exposure.id === selected.id}
+              aria-pressed={exposure.id === selected.id}
               className="strip-frame"
-              id={`condition-tab-${exposure.id}`}
               key={exposure.id}
               onClick={() => setSelectedId(exposure.id)}
-              role="tab"
               type="button"
             >
               <FrameTexture exposure={exposure} />
@@ -130,10 +124,13 @@ export function ExposurePreview() {
           <strong>{selected.environment}</strong>
         </div>
         <div>
-          <span className="evidence-label">Observed result</span>
+          <span className="evidence-label">Generated result</span>
           <strong>{selected.matched} of {selected.total} matched</strong>
         </div>
-        <code>VERDICT_CELL={selected.id} pnpm test --filter retry-race</code>
+        <div>
+          <span className="evidence-label">Proposed command / not run</span>
+          <code>{selected.command}</code>
+        </div>
       </div>
     </section>
   );

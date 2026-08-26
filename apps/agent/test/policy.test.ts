@@ -26,11 +26,18 @@ describe("Verdict TrueForge manifest policy", () => {
     const manifest = buildVerdictAgentManifest("openai/gpt-5.2");
 
     expect(manifest.config?.dynamicSubAgents?.enabled).toBe(true);
+    expect(manifest.config?.sandbox).toEqual({
+      enabled: true,
+      fileDownloads: false,
+    });
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain("ACT 1, HUNTER");
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain("at most 8 condition cells");
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain("ACT 2, SURGEON");
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain("at most 12 relevant commits");
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain("ACT 3, INSURANCE");
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "owner, repo, workflow_id and ref must match",
+    );
   });
 
   it("keeps the GitHub token only in connector headers", () => {

@@ -3,7 +3,7 @@ import { CaseWorkspace } from "@/components/case-workspace";
 import { demoCase } from "@/lib/demo-case";
 
 export const metadata: Metadata = {
-  title: "TrueForge #417 evidence case | Verdict",
+  title: "TrueForge #417 evidence case",
   description: "Inspect Verdict's simulated reproduction, history range and approval gate for TrueForge issue #417.",
 };
 

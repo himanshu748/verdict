@@ -3,7 +3,6 @@
 import {
   ArrowLeft,
   ArrowSquareOut,
-  CheckCircle,
   ClipboardText,
   Crosshair,
   FileText,
@@ -12,7 +11,6 @@ import {
   LockKey,
   Scales,
   ShieldCheck,
-  XCircle,
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -52,12 +50,16 @@ function shortSha(sha: string) {
 function outcomeLabel(outcome: DemoCase["conditions"][number]["records"][number]["outcome"]) {
   switch (outcome) {
     case "FAIL_MATCH":
-      return "Signature matched";
+      return "Generated signature match";
     case "PASS":
-      return "Completed inside budget";
+      return "Generated inside budget";
     case "UNRESOLVED":
-      return "Unresolved";
+      return "Generated unresolved";
   }
+}
+
+function relationshipLabel(relationship: DemoCase["history"][number]["relationship"]) {
+  return relationship === "IMMEDIATE_PARENT" ? "Immediate parent" : "Static-diff suspect";
 }
 
 export function CaseWorkspace({ data }: { data: DemoCase }) {
@@ -67,6 +69,9 @@ export function CaseWorkspace({ data }: { data: DemoCase }) {
   );
   const selectedCondition =
     data.conditions.find((condition) => condition.id === selectedConditionId) ??
+    data.conditions[0];
+  const pinnedCondition =
+    data.conditions.find((condition) => condition.id === data.selectedConditionId) ??
     data.conditions[0];
   const [selectedRunId, setSelectedRunId] = useState<string>(
     selectedCondition?.records[0]?.runId ?? "",
@@ -80,7 +85,11 @@ export function CaseWorkspace({ data }: { data: DemoCase }) {
     );
   }, [selectedCondition, selectedRunId]);
 
-  if (selectedCondition === undefined || selectedRecord === undefined) {
+  if (
+    selectedCondition === undefined ||
+    selectedRecord === undefined ||
+    pinnedCondition === undefined
+  ) {
     return null;
   }
 
@@ -91,6 +100,17 @@ export function CaseWorkspace({ data }: { data: DemoCase }) {
     }
     setSelectedConditionId(conditionId);
     setSelectedRunId(condition.records[0]?.runId ?? "");
+  }
+
+  function choosePhase(phaseId: PhaseId) {
+    setActivePhase(phaseId);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        const heading = document.getElementById(`${phaseId}-heading`);
+        heading?.scrollIntoView({ block: "start" });
+        heading?.focus({ preventScroll: true });
+      });
+    });
   }
 
   return (
@@ -117,12 +137,12 @@ export function CaseWorkspace({ data }: { data: DemoCase }) {
       <div className="case-layout">
         <aside className="case-sidebar">
           <div className="case-state-block">
-            <span>Terminal verdict</span>
+            <span>Fixture conclusion</span>
             <strong>
-              <CheckCircle aria-hidden="true" size={17} weight="regular" />
-              Reproduction pinned
+              <FileText aria-hidden="true" size={17} weight="regular" />
+              Generated reproduction
             </strong>
-            <small>{data.selectedResult.matched}/{data.selectedResult.observed} valid runs matched</small>
+            <small>{data.selectedResult.matched}/{data.selectedResult.observed} generated records match. Execution status: not run.</small>
           </div>
 
           <nav aria-label="Case phases" className="phase-list">
@@ -131,7 +151,7 @@ export function CaseWorkspace({ data }: { data: DemoCase }) {
                 aria-current={activePhase === id ? "step" : undefined}
                 className="phase-button"
                 key={id}
-                onClick={() => setActivePhase(id)}
+                onClick={() => choosePhase(id)}
                 type="button"
               >
                 <Icon aria-hidden="true" size={18} weight="regular" />
@@ -139,16 +159,16 @@ export function CaseWorkspace({ data }: { data: DemoCase }) {
                   <small>{meta}</small>
                   <strong>{label}</strong>
                 </span>
-                <span className="phase-state">Complete</span>
+                <span className="phase-state">Modeled</span>
               </button>
             ))}
           </nav>
 
           <div className="agent-trace">
-            <span>TrueForge thread trace</span>
-            <div><CheckCircle aria-hidden="true" size={14} />Hunter investigator</div>
-            <div><CheckCircle aria-hidden="true" size={14} />History investigator</div>
-            <small>Dynamic subagent events are projected by `apps/agent`.</small>
+            <span>TrueForge execution design</span>
+            <div><ClipboardText aria-hidden="true" size={14} />Hunter prompt bounded</div>
+            <div><ClipboardText aria-hidden="true" size={14} />Surgeon prompt bounded</div>
+            <small>No live thread events are claimed by this fixture.</small>
           </div>
         </aside>
 
@@ -159,7 +179,7 @@ export function CaseWorkspace({ data }: { data: DemoCase }) {
               <h1>{data.source.title}</h1>
             </div>
             <div className="case-title-meta">
-              <span>Baseline</span>
+              <span>Fixture reference</span>
               <code>{shortSha(data.source.reportCommit)}</code>
             </div>
           </header>
@@ -169,7 +189,7 @@ export function CaseWorkspace({ data }: { data: DemoCase }) {
               <div className="phase-heading">
                 <div>
                   <span>Investigation contract</span>
-                  <h2 id="contract-heading">Bound the question before running code.</h2>
+                  <h2 id="contract-heading" tabIndex={-1}>Bound the question before running code.</h2>
                 </div>
                 <span className="read-only-state"><LockKey aria-hidden="true" size={14} /> Read-only</span>
               </div>
@@ -177,15 +197,15 @@ export function CaseWorkspace({ data }: { data: DemoCase }) {
                 <dl className="case-definition-list">
                   <div><dt>Repository</dt><dd>{data.source.repository}</dd></div>
                   <div><dt>Failure signature</dt><dd>{data.contract.signature}</dd></div>
-                  <div><dt>Observation budget</dt><dd>{data.contract.observationBudgetMs} ms per run</dd></div>
+                  <div><dt>Selected request budget</dt><dd>{data.contract.requestBudgetMs} ms</dd></div>
                   <div><dt>Threshold</dt><dd>{data.contract.threshold} valid observations</dd></div>
-                  <div><dt>Condition space</dt><dd>{data.contract.matrixSize} endpoint and upstream pairs</dd></div>
+                  <div><dt>Condition space</dt><dd>{data.contract.matrixSize} request budget and upstream pairs</dd></div>
                   <div><dt>Permission</dt><dd>{data.contract.permissionMode}</dd></div>
                 </dl>
                 <div className="contract-command">
-                  <span>Bounded command</span>
+                  <span>{data.contract.commandPurpose}</span>
                   <code>{data.contract.command}</code>
-                  <p>The harness records exit code, duration, environment and a bounded output excerpt for every run.</p>
+                  <p>Fixture status: proposed, not implemented. Execution status: not run. A future harness run would record exit code, duration, environment and a bounded output excerpt.</p>
                 </div>
               </div>
             </section>
@@ -195,17 +215,17 @@ export function CaseWorkspace({ data }: { data: DemoCase }) {
             <section className="case-phase" aria-labelledby="hunter-heading">
               <div className="phase-heading">
                 <div>
-                  <span>Act I · Hunter</span>
-                  <h2 id="hunter-heading">Find the smallest repeatable envelope.</h2>
+                  <span>Act I / Hunter</span>
+                  <h2 id="hunter-heading" tabIndex={-1}>Model the smallest repeatable envelope.</h2>
                 </div>
-                <span className="terminal-state">{stateLabel(selectedCondition.result.state)}</span>
+                <span className="terminal-state">Generated {stateLabel(selectedCondition.result.state)}</span>
               </div>
 
               <div className="hunt-workbench">
-                <div className="case-matrix" aria-label="Recorded condition matrix">
+                <div className="case-matrix" aria-label="Simulated condition matrix">
                   <div className="case-matrix-heading">
-                    <span>Endpoint × upstream behavior</span>
-                    <span>10 trials each</span>
+                    <span>Request budget × upstream behavior</span>
+                    <span>10 generated records each</span>
                   </div>
                   <div className="case-matrix-grid">
                     {data.conditions.map((condition) => {
@@ -213,7 +233,7 @@ export function CaseWorkspace({ data }: { data: DemoCase }) {
                       const label = stateLabel(condition.result.state);
                       return (
                         <button
-                          aria-label={`Condition ${condition.id}: ${condition.endpoint}, ${condition.upstream}, ${label}`}
+                          aria-label={`Condition ${condition.id}: ${condition.requestBudgetMs} millisecond budget, ${condition.upstream}, ${label}`}
                           aria-pressed={selected}
                           className={`case-cell state-${condition.result.state.toLowerCase().replaceAll("_", "-")}`}
                           key={condition.id}
@@ -221,7 +241,7 @@ export function CaseWorkspace({ data }: { data: DemoCase }) {
                           type="button"
                         >
                           <span className="case-cell-top"><code>{condition.id}</code><span>{condition.result.matched}/{condition.result.observed}</span></span>
-                          <span className="case-cell-body"><strong>{condition.endpoint}</strong><span>{condition.upstream}</span></span>
+                          <span className="case-cell-body"><strong>{condition.requestBudgetMs} ms budget</strong><span>{condition.upstream}</span></span>
                           <span className="case-cell-state">{label}</span>
                           {selected ? <span aria-hidden="true" className="case-grease-circle" /> : null}
                         </button>
@@ -232,10 +252,10 @@ export function CaseWorkspace({ data }: { data: DemoCase }) {
 
                 <aside className="run-inspector" aria-label="Selected run inspector">
                   <div className="inspector-heading">
-                    <div><span>Selected condition</span><strong>{selectedCondition.id}</strong></div>
-                    <span>{selectedCondition.endpoint} / {selectedCondition.upstream}</span>
+                    <div><span>Selected generated condition</span><strong>{selectedCondition.id}</strong></div>
+                    <span>{selectedCondition.requestBudgetMs} ms budget / {selectedCondition.upstream}</span>
                   </div>
-                  <div className="run-strip" aria-label="Recorded runs">
+                  <div className="run-strip" aria-label="Generated example records">
                     {selectedCondition.records.map((record, index) => (
                       <button
                         aria-label={`Inspect run ${index + 1}: ${outcomeLabel(record.outcome)}`}
@@ -251,13 +271,13 @@ export function CaseWorkspace({ data }: { data: DemoCase }) {
                   </div>
                   <dl className="run-record">
                     <div><dt>Outcome</dt><dd>{outcomeLabel(selectedRecord.outcome)}</dd></div>
-                    <div><dt>Duration</dt><dd>{selectedRecord.durationMs} ms</dd></div>
+                    <div><dt>Generated duration</dt><dd>{selectedRecord.durationMs} ms</dd></div>
                     <div><dt>Exit code</dt><dd>{selectedRecord.exitCode ?? "none"}</dd></div>
                     <div><dt>Commit</dt><dd>{shortSha(selectedRecord.commitSha)}</dd></div>
                     <div><dt>Run ID</dt><dd>{selectedRecord.runId}</dd></div>
                   </dl>
                   <div className="output-excerpt">
-                    <span>Bounded output</span>
+                    <span>Generated output excerpt</span>
                     <code>{selectedRecord.outputExcerpt}</code>
                   </div>
                 </aside>
@@ -269,32 +289,32 @@ export function CaseWorkspace({ data }: { data: DemoCase }) {
             <section className="case-phase" aria-labelledby="surgeon-heading">
               <div className="phase-heading">
                 <div>
-                  <span>Act II · Surgeon</span>
-                  <h2 id="surgeon-heading">Localise the first demonstrated bad commit.</h2>
+                  <span>Act II / Surgeon</span>
+                  <h2 id="surgeon-heading" tabIndex={-1}>Inspect a static-diff suspect range.</h2>
                 </div>
-                <span className="terminal-state">Demonstrated range</span>
+                <span className="terminal-state">Runtime not run</span>
               </div>
               <div className="boundary-summary">
-                <div><span>Last demonstrated good</span><code>{shortSha(data.boundary.goodCommit ?? "")}</code></div>
+                <div><span>Immediate parent</span><code>{shortSha(data.suspectRange.immediateParentCommit)}</code></div>
                 <ArrowSquareOut aria-hidden="true" size={20} weight="regular" />
-                <div><span>First demonstrated bad</span><code>{shortSha(data.boundary.badCommit ?? "")}</code></div>
+                <div><span>Static-diff suspect</span><code>{shortSha(data.suspectRange.suspectCommit)}</code></div>
               </div>
               <ol className="history-list">
                 {data.history.map((entry) => (
                   <li className={`history-${entry.outcome.toLowerCase()}`} key={entry.commitSha}>
                     <span className="history-glyph">
-                      {entry.outcome === "PASS" ? <CheckCircle aria-hidden="true" /> : <XCircle aria-hidden="true" />}
+                      <FileText aria-hidden="true" />
                     </span>
                     <a href={entry.url} rel="noreferrer" target="_blank">
                       <code>{shortSha(entry.commitSha)}</code>
                       <strong>{entry.title}</strong>
                     </a>
                     <span>{entry.date}</span>
-                    <span>{entry.outcome === "PASS" ? "Clean" : "Signature matched"}</span>
+                    <span>{relationshipLabel(entry.relationship)}</span>
                   </li>
                 ))}
               </ol>
-              <p className="case-note">The raw unbounded snapshot registration fetch appears in <code>{shortSha(data.boundary.badCommit ?? "")}</code>. Untested commits keep this result a range. Later sampled commits retain the same simulated signature.</p>
+              <p className="case-note">{data.suspectRange.basis}</p>
             </section>
           ) : null}
 
@@ -302,42 +322,45 @@ export function CaseWorkspace({ data }: { data: DemoCase }) {
             <section className="case-phase" aria-labelledby="insurance-heading">
               <div className="phase-heading">
                 <div>
-                  <span>Act III · Insurance</span>
-                  <h2 id="insurance-heading">Prove polarity, then stop at the write boundary.</h2>
+                  <span>Act III / Insurance</span>
+                  <h2 id="insurance-heading" tabIndex={-1}>Define a test plan, then stop at the write boundary.</h2>
                 </div>
                 <span className="approval-state"><LockKey aria-hidden="true" size={14} /> Approval required</span>
               </div>
-              <div className="regression-proof">
-                <div className="proof-row proof-clean">
-                  <CheckCircle aria-hidden="true" size={20} />
-                  <div><span>Last good commit</span><code>{shortSha(data.regression.good.commitSha)}</code></div>
-                  <strong>PASS</strong>
-                  <span>{data.regression.good.durationMs} ms</span>
-                </div>
-                <div className="proof-row proof-bad">
-                  <XCircle aria-hidden="true" size={20} />
-                  <div><span>First bad commit</span><code>{shortSha(data.regression.bad.commitSha)}</code></div>
-                  <strong>FAIL MATCH</strong>
-                  <span>{data.regression.bad.durationMs} ms</span>
-                </div>
+              <div className="publication-manifest test-plan-panel">
+                <header><ClipboardText aria-hidden="true" size={18} /><span>Proposed Jest regression plan</span><strong>{data.testPlan.status}</strong></header>
+                <dl>
+                  <div><dt>Existing test file</dt><dd><code>{data.testPlan.path}</code></dd></div>
+                  <div><dt>Command</dt><dd><code>{data.testPlan.command}</code></dd></div>
+                  <div><dt>Scenario</dt><dd>{data.testPlan.scenario}</dd></div>
+                  <div><dt>Expected before fix</dt><dd>{data.testPlan.expectedBeforeFix}</dd></div>
+                  <div><dt>Expected after fix</dt><dd>{data.testPlan.expectedAfterFix}</dd></div>
+                </dl>
               </div>
               <div className="insurance-grid">
                 <div className="publication-manifest">
-                  <header><GitPullRequest aria-hidden="true" size={18} /><span>Draft PR manifest</span></header>
+                  <header><GitPullRequest aria-hidden="true" size={18} /><span>Proposed draft PR</span><strong>{data.publication.status}</strong></header>
                   <dl>
                     <div><dt>Target</dt><dd>{data.publication.targetRepository}</dd></div>
-                    <div><dt>Branch</dt><dd>{data.publication.branch}</dd></div>
-                    <div><dt>Workflow</dt><dd>{data.publication.workflow}</dd></div>
-                    <div><dt>Files</dt><dd>{data.publication.files.join(" · ")}</dd></div>
+                    <div><dt>Proposed branch</dt><dd>{data.publication.branch}</dd></div>
+                    <div><dt>Proposed workflow</dt><dd>{data.publication.workflow}</dd></div>
+                    <div>
+                      <dt>Files</dt>
+                      <dd>
+                        <ul className="manifest-file-list">
+                          {data.publication.files.map((file) => <li key={file}><code>{file}</code></li>)}
+                        </ul>
+                      </dd>
+                    </div>
                   </dl>
                 </div>
                 <div className="approval-gate">
                   <LockKey aria-hidden="true" size={24} />
-                  <h3>{approvalDecision === "denied" ? "Public write denied." : "Default decision: deny."}</h3>
+                  <h3 aria-live="polite" role="status">{approvalDecision === "denied" ? "Public write denied." : "Default decision: deny."}</h3>
                   <p>
                     {approvalDecision === "denied"
                       ? "Evidence remains available. No workflow was triggered and no GitHub mutation occurred."
-                      : "TrueForge pauses on actions_run_trigger. A denial creates no branch, commit or pull request."}
+                      : "TrueForge pauses only when one actions_run_trigger call exactly matches the reviewed workflow target. A denial creates no branch, commit or pull request."}
                   </p>
                   <div className="approval-actions">
                     <button className="button button-secondary" onClick={() => setApprovalDecision("denied")} type="button">
@@ -347,7 +370,7 @@ export function CaseWorkspace({ data }: { data: DemoCase }) {
                       Approve live write
                     </button>
                   </div>
-                  <small>Live approval enables only when a local TrueForge session has a pending tool call.</small>
+                  <small>The demo keeps live approval disabled. A configured session must present one exact pending workflow dispatch.</small>
                 </div>
               </div>
             </section>
@@ -358,20 +381,21 @@ export function CaseWorkspace({ data }: { data: DemoCase }) {
               <div className="phase-heading">
                 <div>
                   <span>Evidence package</span>
-                  <h2 id="verdict-heading">A conclusion with an audit trail.</h2>
+                  <h2 id="verdict-heading" tabIndex={-1}>A clearly labeled simulated artifact.</h2>
                 </div>
-                <span className="terminal-state">Reproduction pinned</span>
+                <span className="terminal-state">Generated result</span>
               </div>
               <article className="verdict-document">
                 <header>
-                  <div><span>VERDICT / TF-417</span><strong>REPRODUCTION_PINNED</strong></div>
+                  <div><span>VERDICT / TF-417</span><strong>SIMULATED REPRODUCTION_PINNED</strong></div>
                   <Scales aria-hidden="true" size={32} weight="regular" />
                 </header>
                 <dl>
-                  <div><dt>Observed</dt><dd>{data.selectedResult.matched}/{data.selectedResult.observed} valid runs</dd></div>
-                  <div><dt>Condition</dt><dd>{selectedCondition.endpoint} / {selectedCondition.upstream}</dd></div>
-                  <div><dt>Last demonstrated good</dt><dd>{shortSha(data.boundary.goodCommit ?? "")}</dd></div>
-                  <div><dt>First demonstrated bad</dt><dd>{shortSha(data.boundary.badCommit ?? "")}</dd></div>
+                  <div><dt>Evidence mode</dt><dd>Conceptual simulation</dd></div>
+                  <div><dt>Observed</dt><dd>{data.selectedResult.matched}/{data.selectedResult.observed} generated records</dd></div>
+                  <div><dt>Condition</dt><dd>{pinnedCondition.requestBudgetMs} ms budget / {pinnedCondition.upstream}</dd></div>
+                  <div><dt>Suspect range</dt><dd>{shortSha(data.suspectRange.immediateParentCommit)} to {shortSha(data.suspectRange.suspectCommit)}</dd></div>
+                  <div><dt>Runtime polarity</dt><dd>Not established</dd></div>
                   <div><dt>Public write</dt><dd>Not performed</dd></div>
                 </dl>
               </article>
@@ -393,7 +417,7 @@ export function CaseWorkspace({ data }: { data: DemoCase }) {
           <button
             aria-current={activePhase === id ? "step" : undefined}
             key={id}
-            onClick={() => setActivePhase(id)}
+            onClick={() => choosePhase(id)}
             type="button"
           >
             <Icon aria-hidden="true" size={18} weight="regular" />

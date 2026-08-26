@@ -1,5 +1,5 @@
 import type { TrueForge, TrueForgeApi } from "@truefoundry/trueforge-sdk";
-import { VERDICT_AGENT_NAME } from "./policy.js";
+import { GITHUB_MCP_NAME, VERDICT_AGENT_NAME } from "./policy.js";
 
 export type VerdictTurnStatus =
   | "idle"
@@ -18,7 +18,23 @@ export interface InvestigationTarget {
 export interface PendingApproval {
   sourceEventId: string;
   threadId: string;
+  /**
+   * Tool metadata copied from the referenced model.message event. A null value
+   * means the approval reference could not be resolved and must never be
+   * approved. The model event remains the authority, not approval UI input.
+   */
+  toolCall: ModelToolCallMetadata | null;
   toolCallId: string;
+}
+
+export interface ModelToolCallMetadata {
+  argumentsJson: string;
+  functionName: string | null;
+  index: number;
+  sourceEventId: string;
+  threadId: string;
+  toolCallId: string | null;
+  toolInfo: TrueForgeApi.ToolInfo | null;
 }
 
 export interface DynamicThreadProjection {
@@ -31,6 +47,7 @@ export interface DynamicThreadProjection {
 export interface VerdictEventProjection {
   assistantText: string;
   error: string | null;
+  modelToolCalls: ModelToolCallMetadata[];
   pendingApprovals: PendingApproval[];
   sessionId: string;
   status: VerdictTurnStatus;
@@ -38,11 +55,16 @@ export interface VerdictEventProjection {
   turnId: string | null;
 }
 
-export interface ApprovalChoice {
-  decision: "allow" | "deny";
-  reason?: string;
-  threadId: string;
-  toolCallId: string;
+/**
+ * Trusted host policy for the sole workflow dispatch Verdict may approve.
+ * Values must come from application configuration or an equivalent trusted
+ * boundary, never from model output, issue text or approval form fields.
+ */
+export interface WorkflowDispatchTarget {
+  owner: string;
+  ref: string;
+  repo: string;
+  workflowId: string;
 }
 
 export type ProjectionListener = (
@@ -54,6 +76,7 @@ export function createVerdictProjection(sessionId: string): VerdictEventProjecti
   return {
     assistantText: "",
     error: null,
+    modelToolCalls: [],
     pendingApprovals: [],
     sessionId,
     status: "idle",
@@ -96,6 +119,7 @@ function upsertThread(
 function appendUniqueApprovals(
   current: PendingApproval[],
   event: TrueForgeApi.ToolApprovalRequiredEvent,
+  modelToolCalls: readonly ModelToolCallMetadata[],
 ): PendingApproval[] {
   const byKey = new Map(
     current.map((approval) => [
@@ -105,15 +129,125 @@ function appendUniqueApprovals(
   );
 
   for (const toolCall of event.toolCalls) {
+    const metadata = resolveModelToolCall(
+      modelToolCalls,
+      event.threadId,
+      toolCall.sourceEventId,
+      toolCall.id,
+    );
     const approval = {
       sourceEventId: toolCall.sourceEventId,
       threadId: event.threadId,
+      toolCall: metadata,
       toolCallId: toolCall.id,
     };
     byKey.set(`${approval.threadId}:${approval.toolCallId}`, approval);
   }
 
   return [...byKey.values()];
+}
+
+function cloneToolInfo(
+  toolInfo: TrueForgeApi.ToolInfo | null,
+): TrueForgeApi.ToolInfo | null {
+  return toolInfo ? { ...toolInfo } : null;
+}
+
+function cloneModelToolCall(
+  toolCall: ModelToolCallMetadata,
+): ModelToolCallMetadata {
+  return {
+    ...toolCall,
+    toolInfo: cloneToolInfo(toolCall.toolInfo),
+  };
+}
+
+function resolveModelToolCall(
+  modelToolCalls: readonly ModelToolCallMetadata[],
+  threadId: string,
+  sourceEventId: string,
+  toolCallId: string,
+): ModelToolCallMetadata | null {
+  const matches = modelToolCalls.filter(
+    (toolCall) =>
+      toolCall.threadId === threadId &&
+      toolCall.sourceEventId === sourceEventId &&
+      toolCall.toolCallId === toolCallId,
+  );
+
+  return matches.length === 1 ? cloneModelToolCall(matches[0]!) : null;
+}
+
+function refreshPendingApprovalMetadata(
+  pending: readonly PendingApproval[],
+  modelToolCalls: readonly ModelToolCallMetadata[],
+): PendingApproval[] {
+  return pending.map((approval) => ({
+    ...approval,
+    toolCall: resolveModelToolCall(
+      modelToolCalls,
+      approval.threadId,
+      approval.sourceEventId,
+      approval.toolCallId,
+    ),
+  }));
+}
+
+function projectModelMessageToolCalls(
+  current: readonly ModelToolCallMetadata[],
+  event: TrueForgeApi.ModelMessageEvent,
+): ModelToolCallMetadata[] {
+  const retained = current.filter(
+    (toolCall) =>
+      toolCall.sourceEventId !== event.id || toolCall.threadId !== event.threadId,
+  );
+  const incoming = (event.toolCalls ?? []).map(
+    (toolCall, index): ModelToolCallMetadata => ({
+      argumentsJson: toolCall.function.arguments,
+      functionName: toolCall.function.name,
+      index,
+      sourceEventId: event.id,
+      threadId: event.threadId,
+      toolCallId: toolCall.id,
+      toolInfo: cloneToolInfo(toolCall.toolInfo),
+    }),
+  );
+
+  return [...retained, ...incoming];
+}
+
+function projectModelMessageDeltaToolCalls(
+  current: readonly ModelToolCallMetadata[],
+  event: TrueForgeApi.ModelMessageDeltaEvent,
+): ModelToolCallMetadata[] {
+  let next = current.map(cloneModelToolCall);
+
+  for (const delta of event.toolCalls ?? []) {
+    const index = next.findIndex(
+      (toolCall) =>
+        toolCall.sourceEventId === event.id &&
+        toolCall.threadId === event.threadId &&
+        toolCall.index === delta.index,
+    );
+    const existing = index === -1 ? null : next[index]!;
+    const merged: ModelToolCallMetadata = {
+      argumentsJson: `${existing?.argumentsJson ?? ""}${delta.function?.arguments ?? ""}`,
+      functionName: delta.function?.name ?? existing?.functionName ?? null,
+      index: delta.index,
+      sourceEventId: event.id,
+      threadId: event.threadId,
+      toolCallId: delta.id ?? existing?.toolCallId ?? null,
+      toolInfo: cloneToolInfo(delta.toolInfo ?? existing?.toolInfo ?? null),
+    };
+
+    if (index === -1) {
+      next = [...next, merged];
+    } else {
+      next[index] = merged;
+    }
+  }
+
+  return next;
 }
 
 export function projectTurnEvent(
@@ -125,6 +259,7 @@ export function projectTurnEvent(
       return {
         ...projection,
         error: null,
+        modelToolCalls: [],
         pendingApprovals: [],
         status: "running",
         turnId: event.turnId,
@@ -153,14 +288,36 @@ export function projectTurnEvent(
         }),
       };
     }
-    case "model.message.delta":
+    case "model.message.delta": {
+      const modelToolCalls = projectModelMessageDeltaToolCalls(
+        projection.modelToolCalls,
+        event,
+      );
       return {
         ...projection,
         assistantText: `${projection.assistantText}${event.content ?? ""}`,
+        modelToolCalls,
+        pendingApprovals: refreshPendingApprovalMetadata(
+          projection.pendingApprovals,
+          modelToolCalls,
+        ),
       };
+    }
     case "model.message": {
       const text = contentToText(event.content);
-      return text ? { ...projection, assistantText: text } : projection;
+      const modelToolCalls = projectModelMessageToolCalls(
+        projection.modelToolCalls,
+        event,
+      );
+      return {
+        ...projection,
+        ...(text ? { assistantText: text } : {}),
+        modelToolCalls,
+        pendingApprovals: refreshPendingApprovalMetadata(
+          projection.pendingApprovals,
+          modelToolCalls,
+        ),
+      };
     }
     case "tool.approval_required":
       return {
@@ -168,6 +325,7 @@ export function projectTurnEvent(
         pendingApprovals: appendUniqueApprovals(
           projection.pendingApprovals,
           event,
+          projection.modelToolCalls,
         ),
         status: "approval_required",
       };
@@ -191,7 +349,12 @@ export function projectTurnEvent(
           action.type === "tool.approval_required",
       );
       const pendingApprovals = approvalEvents.reduce(
-        (approvals, action) => appendUniqueApprovals(approvals, action),
+        (approvals, action) =>
+          appendUniqueApprovals(
+            approvals,
+            action,
+            projection.modelToolCalls,
+          ),
         projection.pendingApprovals,
       );
       const otherRequiredAction = event.state.requiredActions.find(
@@ -232,12 +395,237 @@ function approvalKey(approval: {
   return `${approval.threadId}:${approval.toolCallId}`;
 }
 
-export function buildApprovalBatch(
+const WORKFLOW_TOOL_NAME = "actions_run_trigger";
+const WORKFLOW_METHOD = "run_workflow";
+const REQUIRED_WORKFLOW_ARGUMENT_KEYS = [
+  "method",
+  "owner",
+  "ref",
+  "repo",
+  "workflow_id",
+] as const;
+const OPTIONAL_WORKFLOW_ARGUMENT_KEYS = ["inputs"] as const;
+
+interface WorkflowDispatchArguments {
+  inputs?: Record<string, never>;
+  method: typeof WORKFLOW_METHOD;
+  owner: string;
+  ref: string;
+  repo: string;
+  workflow_id: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function assertTrustedWorkflowTarget(
+  target: WorkflowDispatchTarget,
+): WorkflowDispatchTarget {
+  for (const [field, value] of Object.entries(target)) {
+    if (typeof value !== "string" || value.length === 0 || value.trim() !== value) {
+      throw new Error(
+        `Trusted workflow target ${field} must be a non-empty, normalized string.`,
+      );
+    }
+  }
+
+  return target;
+}
+
+function parseWorkflowDispatchArguments(
+  argumentsJson: string,
+): WorkflowDispatchArguments {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(argumentsJson) as unknown;
+  } catch {
+    throw new Error("Workflow tool arguments must be valid JSON.");
+  }
+
+  if (!isRecord(parsed)) {
+    throw new Error("Workflow tool arguments must be a JSON object.");
+  }
+
+  const allowedKeys = new Set<string>([
+    ...REQUIRED_WORKFLOW_ARGUMENT_KEYS,
+    ...OPTIONAL_WORKFLOW_ARGUMENT_KEYS,
+  ]);
+  const extraKeys = Object.keys(parsed).filter((key) => !allowedKeys.has(key));
+  if (extraKeys.length > 0) {
+    throw new Error(
+      `Workflow tool arguments contain forbidden fields: ${extraKeys.join(", ")}.`,
+    );
+  }
+
+  const missingKeys = REQUIRED_WORKFLOW_ARGUMENT_KEYS.filter(
+    (key) => !Object.hasOwn(parsed, key),
+  );
+  if (missingKeys.length > 0) {
+    throw new Error(
+      `Workflow tool arguments are missing required fields: ${missingKeys.join(", ")}.`,
+    );
+  }
+
+  if (parsed.method !== WORKFLOW_METHOD) {
+    throw new Error(`Workflow method must be ${WORKFLOW_METHOD}.`);
+  }
+
+  for (const key of ["owner", "repo", "workflow_id", "ref"] as const) {
+    if (typeof parsed[key] !== "string") {
+      throw new Error(`Workflow argument ${key} must be a string.`);
+    }
+  }
+
+  if (Object.hasOwn(parsed, "inputs")) {
+    if (!isRecord(parsed.inputs) || Object.keys(parsed.inputs).length !== 0) {
+      throw new Error("Workflow inputs must be absent or an empty object.");
+    }
+  }
+
+  return {
+    method: WORKFLOW_METHOD,
+    owner: parsed.owner as string,
+    ref: parsed.ref as string,
+    repo: parsed.repo as string,
+    workflow_id: parsed.workflow_id as string,
+    ...(Object.hasOwn(parsed, "inputs") ? { inputs: {} } : {}),
+  };
+}
+
+function toolInfoMatches(
+  left: TrueForgeApi.ToolInfo | null,
+  right: TrueForgeApi.ToolInfo | null,
+): boolean {
+  if (left === null || right === null || left.type !== right.type) {
+    return left === right;
+  }
+
+  if (left.type === "mcp" && right.type === "mcp") {
+    return (
+      left.name === right.name &&
+      left.serverId === right.serverId &&
+      left.serverName === right.serverName
+    );
+  }
+
+  return left.name === right.name;
+}
+
+function pendingMetadataMatchesModelEvent(
+  pending: PendingApproval,
+  modelToolCall: ModelToolCallMetadata,
+): boolean {
+  const attached = pending.toolCall;
+  return (
+    attached !== null &&
+    attached.argumentsJson === modelToolCall.argumentsJson &&
+    attached.functionName === modelToolCall.functionName &&
+    attached.index === modelToolCall.index &&
+    attached.sourceEventId === pending.sourceEventId &&
+    attached.sourceEventId === modelToolCall.sourceEventId &&
+    attached.threadId === pending.threadId &&
+    attached.threadId === modelToolCall.threadId &&
+    attached.toolCallId === pending.toolCallId &&
+    attached.toolCallId === modelToolCall.toolCallId &&
+    toolInfoMatches(attached.toolInfo, modelToolCall.toolInfo)
+  );
+}
+
+function resolveAuthoritativePendingToolCall(
+  projection: VerdictEventProjection,
+): { pending: PendingApproval; toolCall: ModelToolCallMetadata } {
+  if (projection.pendingApprovals.length !== 1) {
+    throw new Error(
+      "Exactly one pending actions_run_trigger call is required for approval.",
+    );
+  }
+
+  const pending = projection.pendingApprovals[0]!;
+  const matches = projection.modelToolCalls.filter(
+    (toolCall) =>
+      toolCall.sourceEventId === pending.sourceEventId &&
+      toolCall.threadId === pending.threadId &&
+      toolCall.toolCallId === pending.toolCallId,
+  );
+
+  if (matches.length !== 1) {
+    throw new Error(
+      "Pending approval does not resolve to exactly one originating model tool call.",
+    );
+  }
+
+  const toolCall = matches[0]!;
+  if (!pendingMetadataMatchesModelEvent(pending, toolCall)) {
+    throw new Error(
+      "Pending approval metadata does not match its originating model event.",
+    );
+  }
+
+  const workflowCalls = projection.modelToolCalls.filter(
+    (observed) =>
+      observed.functionName === WORKFLOW_TOOL_NAME ||
+      observed.toolInfo?.name === WORKFLOW_TOOL_NAME,
+  );
+  if (workflowCalls.length !== 1 || workflowCalls[0] !== toolCall) {
+    throw new Error(
+      "Exactly one authoritative actions_run_trigger model tool call is required.",
+    );
+  }
+
+  return { pending, toolCall };
+}
+
+export function buildWorkflowApprovalBatch(
+  projection: VerdictEventProjection,
+  trustedTarget: WorkflowDispatchTarget,
+): TrueForgeApi.UserToolApprovalEvent[] {
+  const target = assertTrustedWorkflowTarget(trustedTarget);
+  const { pending, toolCall } = resolveAuthoritativePendingToolCall(projection);
+
+  if (
+    toolCall.functionName !== WORKFLOW_TOOL_NAME ||
+    toolCall.toolInfo?.type !== "mcp" ||
+    toolCall.toolInfo.name !== WORKFLOW_TOOL_NAME ||
+    toolCall.toolInfo.serverName !== GITHUB_MCP_NAME
+  ) {
+    throw new Error(
+      "Only the configured GitHub actions_run_trigger tool may be approved.",
+    );
+  }
+
+  const args = parseWorkflowDispatchArguments(toolCall.argumentsJson);
+  const mismatches = [
+    ["owner", args.owner, target.owner],
+    ["repo", args.repo, target.repo],
+    ["workflow_id", args.workflow_id, target.workflowId],
+    ["ref", args.ref, target.ref],
+  ].filter(([, actual, expected]) => actual !== expected);
+
+  if (mismatches.length > 0) {
+    throw new Error(
+      `Workflow dispatch does not match trusted target fields: ${mismatches
+        .map(([field]) => field)
+        .join(", ")}.`,
+    );
+  }
+
+  return [
+    {
+      type: "user.tool_approval",
+      threadId: pending.threadId,
+      toolCallId: pending.toolCallId,
+      approval: { status: "allow" },
+    },
+  ];
+}
+
+export function denyAllPending(
   pending: readonly PendingApproval[],
-  choices: readonly ApprovalChoice[],
+  reason: string,
 ): TrueForgeApi.UserToolApprovalEvent[] {
   if (pending.length === 0) {
-    throw new Error("There are no pending tool approvals to resume.");
+    throw new Error("There are no pending tool approvals to deny.");
   }
 
   const pendingKeys = new Set(pending.map(approvalKey));
@@ -245,69 +633,17 @@ export function buildApprovalBatch(
     throw new Error("Pending tool approvals contain duplicates.");
   }
 
-  const choicesByKey = new Map<string, ApprovalChoice>();
-  for (const choice of choices) {
-    const key = approvalKey(choice);
-    if (!pendingKeys.has(key)) {
-      throw new Error(`Approval choice does not match a pending tool call: ${key}`);
-    }
-    if (choicesByKey.has(key)) {
-      throw new Error(`Approval choice is duplicated: ${key}`);
-    }
-    choicesByKey.set(key, choice);
-  }
-
-  if (choicesByKey.size !== pending.length) {
-    throw new Error("Every pending tool call must receive one decision in the batch.");
-  }
-
-  return pending.map((approval) => {
-    const choice = choicesByKey.get(approvalKey(approval));
-    if (!choice) {
-      throw new Error("Approval batch validation failed.");
-    }
-
-    return {
-      type: "user.tool_approval",
-      threadId: approval.threadId,
-      toolCallId: approval.toolCallId,
-      approval:
-        choice.decision === "allow"
-          ? { status: "allow" }
-          : {
-              status: "deny",
-              ...(choice.reason ? { reason: choice.reason } : {}),
-            },
-    };
-  });
-}
-
-export function allowAllPending(
-  pending: readonly PendingApproval[],
-): TrueForgeApi.UserToolApprovalEvent[] {
-  return buildApprovalBatch(
-    pending,
-    pending.map((approval) => ({ ...approval, decision: "allow" as const })),
-  );
-}
-
-export function denyAllPending(
-  pending: readonly PendingApproval[],
-  reason: string,
-): TrueForgeApi.UserToolApprovalEvent[] {
   const trimmedReason = reason.trim();
   if (!trimmedReason) {
     throw new Error("A denial reason is required.");
   }
 
-  return buildApprovalBatch(
-    pending,
-    pending.map((approval) => ({
-      ...approval,
-      decision: "deny" as const,
-      reason: trimmedReason,
-    })),
-  );
+  return pending.map((approval) => ({
+    type: "user.tool_approval",
+    threadId: approval.threadId,
+    toolCallId: approval.toolCallId,
+    approval: { status: "deny", reason: trimmedReason },
+  }));
 }
 
 export async function consumeTurnStream(
@@ -325,7 +661,7 @@ export async function consumeTurnStream(
   return projection;
 }
 
-export async function streamVerdictTurn(
+async function streamVerdictTurn(
   client: TrueForge,
   sessionId: string,
   input: TrueForgeApi.TurnInputItem[],
@@ -371,31 +707,17 @@ export async function startVerdictInvestigation(
   );
 }
 
-export async function resumeVerdictApprovals(
+export async function approveVerdictWorkflow(
   client: TrueForge,
   projection: VerdictEventProjection,
-  choices: readonly ApprovalChoice[],
+  trustedTarget: WorkflowDispatchTarget,
   onProjection?: ProjectionListener,
 ): Promise<VerdictEventProjection> {
-  const input = buildApprovalBatch(projection.pendingApprovals, choices);
+  const input = buildWorkflowApprovalBatch(projection, trustedTarget);
   return streamVerdictTurn(
     client,
     projection.sessionId,
     input,
-    { ...projection, pendingApprovals: [], status: "running" },
-    onProjection,
-  );
-}
-
-export async function allowVerdictApprovals(
-  client: TrueForge,
-  projection: VerdictEventProjection,
-  onProjection?: ProjectionListener,
-): Promise<VerdictEventProjection> {
-  return streamVerdictTurn(
-    client,
-    projection.sessionId,
-    allowAllPending(projection.pendingApprovals),
     { ...projection, pendingApprovals: [], status: "running" },
     onProjection,
   );

@@ -22,7 +22,7 @@ The public page follows this order:
 
 1. State the promise and expose a working condition matrix in the first viewport.
 2. Show how one issue becomes a bounded investigation contract.
-3. Trace a selected condition to its command and immutable run records.
+3. Trace a selected condition to its command and schema-valid simulated run records.
 4. Show that partial, weak, unresolved and not-reproduced outcomes remain honest results.
 5. Explain the read-only default and the approval boundary.
 6. Invite the visitor to inspect the complete simulated fixture case.
@@ -30,10 +30,10 @@ The public page follows this order:
 The product case shell follows this order:
 
 1. Contract: repository support, command, signature, matrix, budget and permission mode.
-2. Hunt: agent findings, exposure grid and selected-run evidence.
-3. Localise: chronology sample and the demonstrated historical boundary.
-4. Prove: good-commit and bad-commit regression polarity.
-5. Verdict: rendered evidence, publication manifest and the real approval event.
+2. Hunter: simulated matrix structure, exposure grid and selected-run evidence.
+3. Surgeon: chronology sample, static-diff suspect and a documented suspect range.
+4. Insurance: conceptual regression plan and disabled publication controls.
+5. Verdict: simulated evidence artifact and approval-gated publication manifest.
 
 If reproduction is not pinned, the case moves directly to a complete partial verdict. Later phases must not look broken or empty.
 
@@ -50,7 +50,7 @@ If reproduction is not pinned, the case moves directly to a complete partial ver
 | Active | `oklch(0.68 0.18 45)` | Work in progress and the publication action |
 | Clean | `oklch(0.69 0.12 145)` | Verified clean history and post-fix proof only |
 | Focus | `oklch(0.76 0.13 235)` | Keyboard focus only |
-| Error | `oklch(0.68 0.19 27)` | Invalid configuration or execution error |
+| Error | `oklch(0.55 0.22 25)` light / `oklch(0.72 0.16 25)` dark | Invalid configuration or execution error |
 | Paper | `oklch(0.97 0.012 75)` | Evidence documents and light-mode canvas |
 | Paper text | `oklch(0.20 0.015 70)` | Evidence-document text and light-mode foreground |
 
@@ -80,8 +80,8 @@ Body text uses `Text` or `Muted`. `Line` is never used for small text. Exposure 
 - Exposure frame: condition label, generated texture, outcome word, glyph and observed-run count.
 - Evidence inspector: command, environment, commit, signature match and bounded output.
 - Status strip: Now, Waiting on and Completed.
-- Case phase navigation: Contract, Hunt, Localise, Prove and Verdict.
-- Evidence paper: conclusion, tested envelope, history result, regression proof and immutable record links.
+- Case phase navigation: Contract, Hunter, Surgeon, Insurance and Verdict.
+- Evidence paper: conclusion, tested envelope, history result, proposed regression plan and record references.
 - Approval panel: exact repository, branch, file list, manifest hash and action.
 
 Icons use Phosphor at a consistent regular stroke. State is always expressed with a word and a glyph.
@@ -89,7 +89,8 @@ Icons use Phosphor at a consistent regular stroke. State is always expressed wit
 ## Responsive rules
 
 - The layout supports 360px through 1440px without page overflow.
-- At 1024px and above, the landing hero uses a 43/57 split.
+- At 1180px and above, the landing hero uses a 43/57 split.
+- At 1024px, the hero and case workbench reflow to one column to keep all evidence visible.
 - At 768px, the matrix remains the primary visual and copy width narrows before the layout stacks.
 - Below 768px, the case rail becomes a compact header. Phase navigation moves to a fixed bottom bar.
 - Mobile Hunt shows one selected exposure at full width, a horizontal film strip for the remaining conditions and an evidence sheet below.

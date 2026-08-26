@@ -1,6 +1,6 @@
 # Verdict TrueForge sidecar
 
-This package connects Verdict to a local TrueForge 0.1.x server. It registers a remote GitHub MCP connector, upserts the Verdict agent, starts streamed investigations and resumes approval pauses as one validated batch.
+This package connects Verdict to a local TrueForge 0.1.x server. It registers a remote GitHub MCP connector, upserts the Verdict agent, starts streamed investigations and resumes approval pauses through a fail-closed policy boundary.
 
 ## Install and run
 
@@ -25,13 +25,15 @@ The server command binds TrueForge to `127.0.0.1:8790` and writes its standalone
 
 ## Policy boundary
 
-The agent can see only `issue_read`, `get_file_contents`, `search_code`, `list_commits` and `actions_run_trigger`. TrueForge requires explicit approval for `actions_run_trigger`. The GitHub token is placed only in the connector's `Authorization` header, never in the agent manifest or session prompt.
+The agent can see only `issue_read`, `get_file_contents`, `search_code`, `list_commits` and `actions_run_trigger`. TrueForge requires explicit approval for `actions_run_trigger`. Its sandbox is enabled and agent-produced file downloads are disabled. The GitHub token is placed only in the connector's `Authorization` header, never in the agent manifest or session prompt.
+
+The allow path retains each tool call from its authoritative `model.message` event and correlates the pending approval by source event ID, thread ID and tool call ID. It permits exactly one call from the configured GitHub connector, with method `run_workflow`, exact owner, repository, workflow ID and ref values, absent or empty inputs and no additional arguments. The expected target is a trusted host policy passed to `approveVerdictWorkflow`. It must come from application configuration, never from model output, issue content or editable approval fields. Unresolved, duplicated or mismatched metadata fails closed. Bulk denial remains available and does not require trusted metadata because denial cannot execute the tool.
 
 Dynamic subagents are enabled and the instructions bound Hunter, Surgeon and Insurance by evidence limits. TrueForge 0.1.x does not expose a policy that guarantees an exact subagent count. Consumers should project `thread.created` events and show what actually ran.
 
 ## Current limitations
 
-- Unit tests validate local policy and approval batching without starting TrueForge. A live server, configured model and GitHub MCP access are still required for an end-to-end run.
+- Unit tests validate local policy and approval authorization without starting TrueForge. A live server, configured model and GitHub MCP access are still required for an end-to-end run.
 - `list_commits` supports bounded suspect-range analysis, not a real executable bisect.
 - An approved `actions_run_trigger` dispatch does not by itself create a pull request. The target repository must provide a reviewed workflow that creates a draft PR and returns evidence of its URL.
 - The bundled standalone SQLite mode is for a local hackathon demo, not production or multi-replica deployment.

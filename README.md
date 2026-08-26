@@ -7,13 +7,23 @@ Verdict is an evidence-first reproduction agent for intermittent software failur
 ## What works today
 
 - A deterministic evidence protocol for valid, duplicate and mixed-run rejection
-- A TrueForge root session with bounded Hunter and Surgeon subagents
+- A TrueForge sidecar configuration with bounded Hunter and Surgeon subagent instructions
 - A read-only GitHub MCP surface with one approval-required workflow-dispatch tool
-- A versioned simulated demo for TrueForge issue #417, clearly separated from live execution
-- Reducer-derived reproduction, history-boundary and regression-polarity views
+- A versioned conceptual demo for TrueForge issue #417, clearly separated from live execution
+- Reducer-derived simulated reproduction views and a static-diff suspect range
 - Downloadable `VERDICT.md` and `verdict.json` demo artifacts
 
-The simulated case demonstrates the product and reducer contracts. It is not presented as a live Daytona run. Live repository execution requires a configured TrueForge model, GitHub token and target workflow. An approved workflow dispatch does not create a pull request unless that reviewed workflow explicitly does so.
+The demo case uses generated records, generated durations and generated outcomes to demonstrate the product and reducer contracts. Verdict has not executed those records against Daytona or the TrueForge repository. Live repository execution requires a configured TrueForge model, GitHub token and target workflow. An approved workflow dispatch does not create a pull request unless that reviewed workflow explicitly does so.
+
+For issue #417, static diff inspection identifies `69237db843c2951d30335b1763e31b869be7fe88` as a suspect because it introduces the raw awaited snapshot registration fetch. Its immediate parent is `f7a0a181a87e025c925f2cbe604e164db99323d5`. This is a static-diff suspect range, not demonstrated runtime polarity.
+
+The documented test plan would extend the repository's existing Jest file at `packages/trueforge-core/tests/core/sandbox/daytonaSnapshotRegistration.test.ts`. Its selected proposed parameterized command is:
+
+```bash
+VERDICT_SCENARIO=SNAPSHOT_REGISTRATION VERDICT_REQUEST_BUDGET_MS=750 VERDICT_UPSTREAM_BEHAVIOR=NO_RESPONSE pnpm --filter @truefoundry/trueforge-core test -- tests/core/sandbox/daytonaSnapshotRegistration.test.ts --runInBand
+```
+
+That proposed parameterized timeout fixture has not been added to the existing file or run by Verdict.
 
 ## Workspace
 
@@ -32,6 +42,8 @@ corepack enable
 pnpm install --frozen-lockfile
 pnpm dev
 ```
+
+Set `NEXT_PUBLIC_SITE_URL` to the public origin for production social metadata. Vercel deployments also derive it from `VERCEL_PROJECT_PRODUCTION_URL` or `VERCEL_URL`. The localhost fallback is for local development only.
 
 Run all checks:
 

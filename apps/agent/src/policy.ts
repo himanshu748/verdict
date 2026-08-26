@@ -21,6 +21,7 @@ Security and truth rules:
 - Never request, reveal, echo or place credentials in messages, tool arguments, artifacts or source code.
 - Never claim a run, reproduction, commit boundary, regression test, fix or pull request unless the corresponding GitHub evidence exists.
 - Do not mutate the repository directly. The only write-capable tool is actions_run_trigger and TrueForge must pause it for explicit human approval.
+- Request at most one actions_run_trigger call at a time. Its method must be run_workflow and its owner, repo, workflow_id and ref must match the host-provided policy exactly. Do not include inputs or any other arguments.
 - Before requesting approval, state the workflow, ref, inputs, expected effect and why it is necessary.
 
 Run three ordered acts. Use dynamic subagents when independent evidence gathering benefits from parallel work. Give every subagent one act, a concrete question and a hard stopping condition.
@@ -88,6 +89,10 @@ export function buildVerdictAgentManifest(
     config: {
       dynamicSubAgents: { enabled: true },
       iterationLimit: 64,
+      sandbox: {
+        enabled: true,
+        fileDownloads: false,
+      },
     },
     mcpServers: [
       {

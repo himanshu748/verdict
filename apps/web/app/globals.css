@@ -88,6 +88,7 @@
       oklch(0.8 0.14 90) 100%
     );
     --clean: oklch(0.72 0.12 145);
+    --error: oklch(0.72 0.16 25);
     color-scheme: dark;
   }
 }
@@ -457,6 +458,19 @@ button {
   background: var(--surface);
 }
 
+.exposure-frame::after {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--canvas) 48%, transparent),
+    color-mix(in srgb, var(--canvas) 78%, transparent)
+  );
+  content: "";
+  pointer-events: none;
+}
+
 .exposure-texture {
   position: absolute;
   inset: 0;
@@ -539,6 +553,7 @@ button {
   border-radius: 50%;
   pointer-events: none;
   transform: rotate(-4deg);
+  animation: grease-reveal 600ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
 }
 
 .selected-evidence {
@@ -570,6 +585,7 @@ button {
 .selected-evidence code {
   display: block;
   min-width: 0;
+  margin-top: 3px;
   padding: 10px 12px;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--line) 74%, transparent);
@@ -1046,7 +1062,7 @@ button {
 }
 
 .agent-trace svg {
-  color: var(--clean);
+  color: var(--signal);
 }
 
 .case-main {
@@ -1074,7 +1090,6 @@ button {
 .case-matrix-heading,
 .inspector-heading span,
 .boundary-summary span,
-.proof-row div span,
 .verdict-document header span {
   color: var(--muted-text);
   font-family: var(--font-data);
@@ -1130,6 +1145,7 @@ button {
 .phase-heading h2 {
   max-width: 800px;
   margin: 7px 0 0;
+  scroll-margin-top: 150px;
   font-size: clamp(1.6rem, 3vw, 2.8rem);
   font-weight: 610;
   letter-spacing: -0.035em;
@@ -1347,6 +1363,7 @@ button {
   border-radius: 50%;
   pointer-events: none;
   transform: rotate(-4deg);
+  animation: grease-reveal 600ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
 }
 
 .run-inspector {
@@ -1388,7 +1405,7 @@ button {
 }
 
 .run-dot {
-  min-height: 36px;
+  min-height: 44px;
   border: 1px solid var(--line);
   border-radius: 0;
   background: var(--canvas);
@@ -1477,6 +1494,23 @@ button {
   align-items: center;
   gap: 16px;
   border-top: 1px solid var(--line);
+  animation: history-resolve 320ms ease-out both;
+}
+
+.history-list li:nth-child(2) {
+  animation-delay: 40ms;
+}
+
+.history-list li:nth-child(3) {
+  animation-delay: 80ms;
+}
+
+.history-list li:nth-child(4) {
+  animation-delay: 120ms;
+}
+
+.history-list li:nth-child(5) {
+  animation-delay: 160ms;
 }
 
 .history-list li:last-child {
@@ -1487,8 +1521,7 @@ button {
   color: var(--signal);
 }
 
-.history-pass .history-glyph,
-.proof-clean > svg {
+.history-pass .history-glyph {
   color: var(--clean);
 }
 
@@ -1536,50 +1569,6 @@ button {
   font-family: var(--font-data);
 }
 
-.regression-proof {
-  margin-top: 28px;
-  border: 1px solid var(--line);
-}
-
-.proof-row {
-  display: grid;
-  min-height: 72px;
-  padding: 14px 18px;
-  grid-template-columns: 24px minmax(0, 1fr) 110px 80px;
-  align-items: center;
-  gap: 14px;
-}
-
-.proof-row + .proof-row {
-  border-top: 1px solid var(--line);
-}
-
-.proof-row > div {
-  display: flex;
-  flex-direction: column;
-}
-
-.proof-row code,
-.proof-row > span,
-.proof-row > strong {
-  font-family: var(--font-data);
-  font-size: 0.72rem;
-}
-
-.proof-row > strong,
-.proof-row > span {
-  text-align: right;
-}
-
-.proof-clean > strong {
-  color: var(--clean);
-}
-
-.proof-bad > svg,
-.proof-bad > strong {
-  color: var(--signal);
-}
-
 .insurance-grid {
   display: grid;
   margin-top: 28px;
@@ -1605,6 +1594,26 @@ button {
   text-transform: uppercase;
 }
 
+.test-plan-panel {
+  margin-top: 28px;
+}
+
+.publication-manifest header strong {
+  margin-left: auto;
+  color: var(--signal);
+  font-family: var(--font-data);
+  font-size: 0.66rem;
+  font-weight: 500;
+}
+
+.test-plan-panel dl > div {
+  grid-template-columns: 160px minmax(0, 1fr);
+}
+
+.test-plan-panel code {
+  overflow-wrap: anywhere;
+}
+
 .publication-manifest dl {
   margin: 0;
   padding: 8px 16px;
@@ -1620,6 +1629,20 @@ button {
 
 .publication-manifest dl > div:last-child {
   border-bottom: 0;
+}
+
+.manifest-file-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 6px;
+  list-style: none;
+}
+
+.manifest-file-list code {
+  font-family: var(--font-data);
+  font-size: 0.7rem;
+  overflow-wrap: anywhere;
 }
 
 .approval-gate {
@@ -1726,7 +1749,31 @@ button {
   display: none;
 }
 
-@media (max-width: 1023px) {
+@keyframes grease-reveal {
+  from {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0.2;
+  }
+
+  to {
+    clip-path: inset(-4% -4% -4% -4%);
+    opacity: 1;
+  }
+}
+
+@keyframes history-resolve {
+  from {
+    opacity: 0.35;
+    transform: translateX(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 1179px) {
   .case-topbar {
     grid-template-columns: 170px minmax(0, 1fr) auto;
   }
@@ -1819,7 +1866,7 @@ button {
 
 @media (max-width: 767px) {
   .case-shell {
-    padding-bottom: 72px;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
   }
 
   .case-topbar {
@@ -1948,14 +1995,6 @@ button {
     display: none;
   }
 
-  .proof-row {
-    grid-template-columns: 22px minmax(0, 1fr) auto;
-  }
-
-  .proof-row > span:last-child {
-    display: none;
-  }
-
   .approval-actions,
   .artifact-actions {
     align-items: stretch;
@@ -1976,7 +2015,8 @@ button {
     inset: auto 0 0;
     z-index: 50;
     display: grid;
-    height: 68px;
+    height: calc(68px + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
     grid-template-columns: repeat(5, 1fr);
     border-top: 1px solid var(--line);
     background: var(--surface);
@@ -2004,6 +2044,10 @@ button {
 
   .mobile-phase-nav button[aria-current="step"] {
     color: var(--signal);
+  }
+
+  .mobile-phase-nav button:focus-visible {
+    outline-offset: -4px;
   }
 
   .site-nav {
@@ -2059,10 +2103,6 @@ button {
   .hero h1 span {
     display: inline;
     white-space: normal;
-  }
-
-  .hero h1 span:first-child::after {
-    content: " ";
   }
 
   .hero-copy > p {
@@ -2162,7 +2202,7 @@ button {
     scroll-snap-align: start;
   }
 
-  .strip-frame[aria-selected="true"] {
+  .strip-frame[aria-pressed="true"] {
     border-color: var(--active);
   }
 
@@ -2182,8 +2222,11 @@ button {
   }
 
   .selected-evidence code {
-    grid-column: 1 / -1;
     white-space: normal;
+  }
+
+  .selected-evidence > div:last-child {
+    grid-column: 1 / -1;
   }
 
   .evidence-section,
