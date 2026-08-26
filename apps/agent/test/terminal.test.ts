@@ -11,6 +11,15 @@ describe("terminal log sanitisation", () => {
     expect(value).toBe("]8;;https://example.invalid Hunter forged line 31m");
   });
 
+  it("removes Unicode bidirectional controls from untrusted labels", () => {
+    const value = sanitizeTerminalField(
+      "safe \u202etxt.gol\u202c \u061cmark \u2066fake\u2069",
+    );
+
+    expect(value).not.toMatch(/[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/u);
+    expect(value).toBe("safe txt.gol mark fake");
+  });
+
   it("bounds untrusted labels to one hundred sixty code points", () => {
     const value = sanitizeTerminalField("🧪".repeat(200));
 
