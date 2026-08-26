@@ -120,7 +120,7 @@ describe("GitHub workflow proof verification", () => {
     });
     expect(fetchImpl).toHaveBeenNthCalledWith(
       1,
-      "https://api.github.com/repos/himanshu748/verdict/actions/workflows/verdict-day4-proof.yml/runs?branch=main&event=workflow_dispatch&per_page=20",
+      "https://api.github.com/repos/himanshu748/verdict/actions/workflows/verdict-day4-proof.yml/runs?branch=main&event=workflow_dispatch&per_page=100",
       expect.objectContaining({
         headers: expect.objectContaining({ Authorization: `Bearer ${token}` }),
       }),
@@ -128,6 +128,29 @@ describe("GitHub workflow proof verification", () => {
     expect(fetchImpl).toHaveBeenNthCalledWith(
       2,
       "https://api.github.com/repos/himanshu748/verdict/git/ref/heads/main",
+      expect.any(Object),
+    );
+  });
+
+  it("captures every baseline page before approval", async () => {
+    const firstPage = Array.from({ length: 100 }, (_, index) =>
+      workflowRun({ id: index + 1, display_title: `Existing run ${index + 1}` }),
+    );
+    const responses = [
+      jsonResponse({ workflow_runs: firstPage }),
+      jsonResponse({ workflow_runs: [workflowRun({ id: 202 })] }),
+      jsonResponse({ object: { type: "commit", sha: dispatchCommitSha } }),
+    ];
+    const fetchImpl = vi.fn(async () => responses.shift()!);
+
+    const captured = await captureWorkflowRunBaseline(token, target, fetchImpl);
+
+    expect(captured.runIds.size).toBe(101);
+    expect(captured.runIds.has(1)).toBe(true);
+    expect(captured.runIds.has(202)).toBe(true);
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      2,
+      "https://api.github.com/repos/himanshu748/verdict/actions/workflows/verdict-day4-proof.yml/runs?branch=main&event=workflow_dispatch&per_page=100&page=2",
       expect.any(Object),
     );
   });
@@ -173,6 +196,41 @@ describe("GitHub workflow proof verification", () => {
       },
     });
     expect(sleep).toHaveBeenCalledOnce();
+  });
+
+  it("keeps polling a candidate after newer runs push it to another page", async () => {
+    const unrelatedRuns = Array.from({ length: 100 }, (_, index) =>
+      workflowRun({
+        id: 300 + index,
+        display_title: `Unrelated run ${index + 1}`,
+      }),
+    );
+    const responses = [
+      jsonResponse({ workflow_runs: [workflowRun()] }),
+      jsonResponse({ workflow_runs: unrelatedRuns }),
+      jsonResponse({
+        workflow_runs: [
+          workflowRun({ status: "completed", conclusion: "success" }),
+        ],
+      }),
+      ...successfulProofResponses().slice(1),
+    ];
+    const fetchImpl = vi.fn(async () => responses.shift()!);
+
+    const proof = await confirmWorkflowProof(
+      token,
+      target,
+      baseline,
+      sourceIssue,
+      { fetchImpl, maxPolls: 2, pollIntervalMs: 1 },
+    );
+
+    expect(proof.workflowRun.id).toBe(202);
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      3,
+      "https://api.github.com/repos/himanshu748/verdict/actions/workflows/verdict-day4-proof.yml/runs?branch=main&event=workflow_dispatch&per_page=100&page=2",
+      expect.any(Object),
+    );
   });
 
   it("ignores an unrelated manual dispatch with another nonce", async () => {

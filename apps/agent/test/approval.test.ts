@@ -334,6 +334,15 @@ describe("workflow approval policy", () => {
       }),
     ).toThrow("Trusted workflow target ref");
   });
+
+  it("rejects a trusted proof target outside main", () => {
+    expect(() =>
+      buildWorkflowApprovalBatch(createApprovalProjection(), {
+        ...trustedTarget,
+        ref: "release",
+      }),
+    ).toThrow("main branch");
+  });
 });
 
 describe("approval turn binding", () => {

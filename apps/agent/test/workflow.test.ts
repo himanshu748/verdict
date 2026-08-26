@@ -21,15 +21,21 @@ describe("approved proof workflow", () => {
   });
 
   it("runs repository code with read-only permissions and no persisted credential", () => {
-    const verifyJob = workflow.split("  verify:\n")[1]?.split(
-      "  publish-proof:\n",
-    )[0];
+    const verifyJob =
+      workflow.split("  verify:\n")[1]?.split("  publish-proof:\n")[0] ?? "";
 
     expect(workflow).toContain("permissions: {}");
+    expect(verifyJob).toContain(
+      "if: github.ref == 'refs/heads/main' && github.run_attempt == 1",
+    );
     expect(verifyJob).toContain("contents: read");
     expect(verifyJob).toContain(
       "actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
     );
+    expect(verifyJob.indexOf("- name: Enable Corepack")).toBeLessThan(
+      verifyJob.indexOf("- name: Use Node.js"),
+    );
+    expect(verifyJob).not.toContain("cache: pnpm");
     expect(verifyJob).toContain("ref: ${{ github.sha }}");
     expect(verifyJob).toContain("persist-credentials: false");
     expect(verifyJob).toContain("pnpm install --frozen-lockfile --ignore-scripts");
@@ -37,7 +43,7 @@ describe("approved proof workflow", () => {
   });
 
   it("isolates publication from checkout, dependencies and repository code", () => {
-    const publishJob = workflow.split("  publish-proof:\n")[1];
+    const publishJob = workflow.split("  publish-proof:\n")[1] ?? "";
 
     expect(publishJob).toContain(
       "if: needs.verify.result == 'success' && github.run_attempt == 1",

@@ -65,6 +65,15 @@ describe("Verdict run configuration", () => {
     );
   });
 
+  it("rejects a proof workflow ref other than main", () => {
+    expect(() =>
+      candidateBuilder()?.({
+        ...validEnv,
+        VERDICT_WORKFLOW_REF: "release",
+      }),
+    ).toThrow("VERDICT_WORKFLOW_REF must be main");
+  });
+
   it.each([
     "VERDICT_ISSUE_REPOSITORY",
     "VERDICT_ISSUE_NUMBER",

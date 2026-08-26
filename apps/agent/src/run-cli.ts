@@ -1,6 +1,7 @@
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import type { TrueForgeApi } from "@truefoundry/trueforge-sdk";
+import { resolveApprovalTurns } from "./approval-loop.js";
 import { createTrueForgeClientFromEnv } from "./client.js";
 import {
   executeApprovedWorkflowWithProof,
@@ -40,7 +41,7 @@ function printObservedEvent(
 
 function printFinalProjection(
   projection: VerdictEventProjection,
-  confirmedWorkflowProof: ConfirmedWorkflowProof | null,
+  confirmedWorkflowProofs: readonly ConfirmedWorkflowProof[],
 ): void {
   console.log(
     JSON.stringify(
@@ -56,7 +57,7 @@ function printFinalProjection(
         })),
         assistantText: projection.assistantText,
         error: projection.error,
-        confirmedWorkflowProof,
+        confirmedWorkflowProofs,
       },
       null,
       2,
@@ -78,66 +79,68 @@ let projection = await startVerdictInvestigation(
   config.workflowTarget,
   onProjection,
 );
-let confirmedWorkflowProof: ConfirmedWorkflowProof | null = null;
+let confirmedWorkflowProofs: ConfirmedWorkflowProof[] = [];
 
 if (projection.status === "approval_required") {
-  const pending = projection.pendingApprovals[0];
-  console.log(
-    JSON.stringify(
-      {
-        decision: "PENDING",
-        trustedWorkflowTarget: config.workflowTarget,
-        proposedTool: pending?.toolCall
-          ? {
-              functionName: pending.toolCall.functionName,
-              argumentsJson: pending.toolCall.argumentsJson,
-              serverName:
-                pending.toolCall.toolInfo?.type === "mcp"
-                  ? pending.toolCall.toolInfo.serverName
-                  : null,
-            }
-          : null,
-      },
-      null,
-      2,
-    ),
-  );
-
   const prompt = createInterface({ input: stdin, output: stdout });
   try {
-    const answer = await prompt.question(
-      "Type APPROVE VERDICT WORKFLOW to allow the exact dispatch, or DENY: ",
-    );
-    const decision = parseVerdictDecision(answer);
-    if (decision === "approve") {
-      const confirmed = await executeApprovedWorkflowWithProof(
-        process.env.GITHUB_TOKEN ?? "",
-        config.workflowTarget,
-        sourceIssueUrl,
-        () =>
-          approveVerdictWorkflow(
-            client,
-            projection,
-            config.workflowTarget,
-            onProjection,
+    const resolved = await resolveApprovalTurns(projection, {
+      decide: async (pendingProjection) => {
+        const pending = pendingProjection.pendingApprovals[0];
+        console.log(
+          JSON.stringify(
+            {
+              decision: "PENDING",
+              trustedWorkflowTarget: config.workflowTarget,
+              proposedTool: pending?.toolCall
+                ? {
+                    functionName: pending.toolCall.functionName,
+                    argumentsJson: pending.toolCall.argumentsJson,
+                    serverName:
+                      pending.toolCall.toolInfo?.type === "mcp"
+                        ? pending.toolCall.toolInfo.serverName
+                        : null,
+                  }
+                : null,
+            },
+            null,
+            2,
           ),
-      );
-      projection = confirmed.approvalResult;
-      confirmedWorkflowProof = confirmed.proof;
-    } else {
-      projection = await denyVerdictApprovals(
-        client,
-        projection,
-        "Maintainer denied the proposed public write.",
-        onProjection,
-      );
-    }
+        );
+        const answer = await prompt.question(
+          "Type APPROVE VERDICT WORKFLOW to allow the exact dispatch, or DENY: ",
+        );
+        return parseVerdictDecision(answer);
+      },
+      approve: (pendingProjection) =>
+        executeApprovedWorkflowWithProof(
+          process.env.GITHUB_TOKEN ?? "",
+          config.workflowTarget,
+          sourceIssueUrl,
+          () =>
+            approveVerdictWorkflow(
+              client,
+              pendingProjection,
+              config.workflowTarget,
+              onProjection,
+            ),
+        ),
+      deny: (pendingProjection) =>
+        denyVerdictApprovals(
+          client,
+          pendingProjection,
+          "Maintainer denied the proposed public write.",
+          onProjection,
+        ),
+    });
+    projection = resolved.projection;
+    confirmedWorkflowProofs = resolved.confirmedWorkflowProofs;
   } finally {
     prompt.close();
   }
 }
 
-printFinalProjection(projection, confirmedWorkflowProof);
+printFinalProjection(projection, confirmedWorkflowProofs);
 if (projection.status !== "done") {
   process.exitCode = 1;
 }

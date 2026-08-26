@@ -4,6 +4,7 @@ const GITHUB_API_ROOT = "https://api.github.com";
 const GITHUB_API_VERSION = "2022-11-28";
 const DEFAULT_MAX_POLLS = 360;
 const DEFAULT_POLL_INTERVAL_MS = 5_000;
+const WORKFLOW_RUNS_PAGE_SIZE = 100;
 const PROOF_KIND = "VERDICT_WORKFLOW_PROOF";
 const PROOF_MODE = "INTEGRATION_PROOF";
 const PROOF_COMMAND = "pnpm --filter @verdict/agent test";
@@ -109,14 +110,20 @@ function repositoryApiRoot(target: WorkflowDispatchTarget): string {
   return `${GITHUB_API_ROOT}/repos/${owner}/${repo}`;
 }
 
-function workflowRunsUrl(target: WorkflowDispatchTarget): string {
+function workflowRunsUrl(
+  target: WorkflowDispatchTarget,
+  page: number,
+): string {
   const workflowId = encodePathSegment(target.workflowId, "workflow ID");
   const url = new URL(
     `${repositoryApiRoot(target)}/actions/workflows/${workflowId}/runs`,
   );
   url.searchParams.set("branch", target.ref);
   url.searchParams.set("event", "workflow_dispatch");
-  url.searchParams.set("per_page", "20");
+  url.searchParams.set("per_page", String(WORKFLOW_RUNS_PAGE_SIZE));
+  if (page > 1) {
+    url.searchParams.set("page", String(page));
+  }
   return url.toString();
 }
 
@@ -415,14 +422,26 @@ async function listWorkflowRuns(
   target: WorkflowDispatchTarget,
   fetchImpl: GitHubFetch,
 ): Promise<WorkflowRunRecord[]> {
-  const response = await requestGitHubJson(
-    workflowRunsUrl(target),
-    token,
-    fetchImpl,
-  );
-  return parseWorkflowRuns(response).filter(
-    (run) => run.event === "workflow_dispatch" && run.headBranch === target.ref,
-  );
+  const runsById = new Map<number, WorkflowRunRecord>();
+  let page = 1;
+
+  while (true) {
+    const response = await requestGitHubJson(
+      workflowRunsUrl(target, page),
+      token,
+      fetchImpl,
+    );
+    const pageRuns = parseWorkflowRuns(response);
+    for (const run of pageRuns) {
+      if (run.event === "workflow_dispatch" && run.headBranch === target.ref) {
+        runsById.set(run.id, run);
+      }
+    }
+    if (pageRuns.length < WORKFLOW_RUNS_PAGE_SIZE) {
+      return [...runsById.values()];
+    }
+    page += 1;
+  }
 }
 
 export async function captureWorkflowRunBaseline(

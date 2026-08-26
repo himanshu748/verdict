@@ -100,10 +100,14 @@ export function buildVerdictRunConfig(
     issueNumber,
     repository: requireEnvValue(env, "VERDICT_ISSUE_REPOSITORY"),
   };
+  const workflowRef = requireEnvValue(env, "VERDICT_WORKFLOW_REF");
+  if (workflowRef !== "main") {
+    throw new Error("VERDICT_WORKFLOW_REF must be main for the proof workflow.");
+  }
   const workflowTarget = assertTrustedWorkflowTarget({
     approvalNonce: createApprovalNonce(),
     owner: requireEnvValue(env, "VERDICT_WORKFLOW_OWNER"),
-    ref: requireEnvValue(env, "VERDICT_WORKFLOW_REF"),
+    ref: workflowRef,
     repo: requireEnvValue(env, "VERDICT_WORKFLOW_REPO"),
     workflowId: requireEnvValue(env, "VERDICT_WORKFLOW_ID"),
   });
@@ -493,6 +497,9 @@ function assertTrustedWorkflowTarget(
     throw new Error(
       "Trusted workflow target approval nonce must be 32 lowercase hexadecimal characters.",
     );
+  }
+  if (target.ref !== "main") {
+    throw new Error("Trusted workflow target must use the main branch.");
   }
 
   return target;
