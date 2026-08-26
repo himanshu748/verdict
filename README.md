@@ -2,57 +2,106 @@
 
 **Bugs are innocent until reproduced.**
 
-Verdict is an evidence-first reproduction agent for intermittent software failures. It searches a bounded condition space, records every valid run and stops before any public write until a human approves the exact action.
+Verdict is an evidence-first product for investigating flaky GitHub issues. It turns an uncertain report into a bounded reproduction search, a reviewable suspect range and a regression plan. Every conclusion keeps its receipts. Every public write stays under maintainer control.
 
-Built for the WeMakeDevs Agent Harness Hackathon. The implementation and its review history are preserved in [PR #1](https://github.com/himanshu748/verdict/pull/1), including Qodo's findings, remediations and resolved review threads.
+## Try the product
 
-## Three-act workflow
+- **Landing page:** Final public link will be added after the design polish pass.
+- **Interactive issue workspace:** Final public link will be added after the design polish pass.
+- **Source and review trail:** [PR #1](https://github.com/himanshu748/verdict/pull/1)
 
-1. **Hunter** models a bounded condition matrix and preserves every valid, partial and unresolved observation.
-2. **Surgeon** narrows history to a defensible suspect range, promoting it to a runtime boundary only when execution establishes polarity.
-3. **Insurance** defines the regression plan and stops at an exact approval gate before any reviewed publication workflow can run.
+The hosted case is a transparent conceptual fixture based on [TrueForge issue #417](https://github.com/truefoundry/trueforge/issues/417). Generated data is labelled throughout the interface. The demo shows the product contract without presenting simulated observations as real runs.
 
-Agents investigate and deterministic reducers decide. The maintainer controls the only public write.
+## Why Verdict exists
 
-## What works today
+Flaky bugs create a dangerous gap between "someone saw it" and "we can prevent it." Most tools jump from issue text to a patch. Verdict makes the investigation earn each claim through a bounded experiment and reviewable evidence.
 
-- A deterministic evidence protocol for valid, duplicate and mixed-run rejection
-- A TrueForge sidecar configuration with bounded Hunter, Surgeon and Insurance instructions
-- A read-only GitHub MCP surface with one approval-required workflow-dispatch tool
-- A versioned conceptual demo for TrueForge issue #417, clearly separated from live execution
-- Reducer-derived simulated reproduction views and a static-diff suspect range
-- Downloadable `VERDICT.md` and `verdict.json` demo artifacts
+Give Verdict:
 
-The demo case uses generated records, generated durations and generated outcomes to demonstrate the product and reducer contracts. Verdict has not executed those records against Daytona or the TrueForge repository. Live repository execution requires a configured TrueForge model, GitHub token and target workflow. An approved workflow dispatch does not create a pull request unless that reviewed workflow explicitly does so.
+- A GitHub issue
+- A maintainer-approved command
+- A bounded set of condition knobs
+- A run budget and reproduction threshold
 
-For issue #417, static diff inspection identifies `69237db843c2951d30335b1763e31b869be7fe88` as a suspect because it introduces the raw awaited snapshot registration fetch. Its immediate parent is `f7a0a181a87e025c925f2cbe604e164db99323d5`. This is a static-diff suspect range, not demonstrated runtime polarity.
+Verdict returns:
 
-The documented test plan would extend the repository's existing Jest file at `packages/trueforge-core/tests/core/sandbox/daytonaSnapshotRegistration.test.ts`. Its selected proposed parameterized command is:
+- The smallest condition that meets the threshold, or an honest partial result
+- The exact command, environment and run records behind the conclusion
+- A reviewable suspect range
+- A regression test plan
+- Human-readable and machine-readable evidence artifacts
+- An exact publication manifest that stays disabled until approval
 
-```bash
-VERDICT_SCENARIO=SNAPSHOT_REGISTRATION VERDICT_REQUEST_BUDGET_MS=750 VERDICT_UPSTREAM_BEHAVIOR=NO_RESPONSE pnpm --filter @truefoundry/trueforge-core test -- tests/core/sandbox/daytonaSnapshotRegistration.test.ts --runInBand
-```
-
-That proposed parameterized timeout fixture has not been added to the existing file or run by Verdict.
-
-## Review evidence
-
-- [Qodo's review summary](https://github.com/himanshu748/verdict/pull/1#issuecomment-5407889215) was updated through the final reviewed commit
-- All six Qodo review threads were resolved before merge
-- GitHub CI runs lint, typecheck, tests and the production build from a clean checkout
-- GitGuardian checks the pull request for exposed secrets
-
-## Workspace
+## The three-act investigation
 
 ```text
-apps/web          Next.js product and landing experience
-apps/agent        TrueForge sidecar, MCP policy and event projection
-packages/protocol Deterministic schemas and reducers
+GitHub issue
+    |
+    v
+Hunter: find the trigger
+    |
+    v
+Surgeon: localize the change
+    |
+    v
+Insurance: keep it fixed
+    |
+    v
+Maintainer review
 ```
 
-## Local development
+### Hunter
 
-Requirements: Node 22.14 or newer and Corepack.
+Hunter searches only the approved condition space. It preserves valid, partial and unresolved observations instead of hiding inconvenient runs.
+
+### Surgeon
+
+Surgeon turns the reproduced condition into the narrowest suspect range the available evidence supports. Static inspection remains visibly different from a proven execution boundary.
+
+### Insurance
+
+Insurance converts the result into a regression plan and an exact publication manifest. The demo remains read-only.
+
+## Evidence contract
+
+Verdict separates exploration from proof:
+
+1. Issue text and repository content start as untrusted inputs.
+2. The investigation can use only approved commands, knobs and budgets.
+3. Every accepted observation must match the evidence schema.
+4. Deterministic reducers decide which claim the records support.
+5. Missing or conflicting evidence produces an honest partial result.
+6. A maintainer controls the only public write.
+
+## What is live today
+
+| Capability | Status | What you can verify |
+|---|---|---|
+| SaaS landing page | Live | Product story, responsive layout, light and dark themes and direct demo navigation |
+| Issue #417 workspace | Live | Interactive condition matrix, agent timeline, evidence ledger and approval preview |
+| Evidence downloads | Live | Structured JSON and a readable report generated by the demo routes |
+| Evidence protocol | Working | Schemas and deterministic reducers validate run records and terminal outcomes |
+| Hosted case data | Conceptual fixture | Every generated result is labelled and separated from real execution evidence |
+| Public repository write | Disabled in demo | The interface previews the review boundary without publishing a patch |
+
+## Demo case: issue #417
+
+The case studies a snapshot-registration request that may wait indefinitely when the upstream request never resolves.
+
+The workspace demonstrates:
+
+- A 12-condition search matrix
+- Pinned, partial, unresolved and not-reproduced states
+- The exact proposed command for the selected condition
+- A static suspect range with its proof limitation visible
+- A regression plan
+- A read-only publication manifest
+
+Open the case, select different conditions and inspect the evidence trail behind the displayed verdict.
+
+## Run locally
+
+Requirements: Node 22.14 or newer, Corepack and pnpm 11.23.
 
 ```bash
 corepack enable
@@ -60,9 +109,9 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Set `NEXT_PUBLIC_SITE_URL` to the public origin for production social metadata. Vercel deployments also derive it from `VERCEL_PROJECT_PRODUCTION_URL` or `VERCEL_URL`. The localhost fallback is for local development only.
+Open [http://localhost:3000](http://localhost:3000) for the landing page and [http://localhost:3000/case/demo](http://localhost:3000/case/demo) for the issue workspace.
 
-Run all checks:
+Run the complete quality gate:
 
 ```bash
 pnpm lint
@@ -71,9 +120,22 @@ pnpm test
 pnpm build
 ```
 
-## Safety boundary
+## Repository map
 
-Issue text, repository content and command output are untrusted data. Commands and allowed condition knobs come from a user-confirmed repository contract. GitHub credentials remain in the local connector configuration. The only write-capable MCP tool is workflow dispatch and TrueForge must pause it for explicit human approval. Draft PR creation is intentionally unavailable until a reviewed target workflow and exact-argument approval UI are connected.
+```text
+apps/web          Next.js landing page and interactive issue workspace
+packages/protocol Evidence schemas, reducers and shared domain types
+.github            CI, review and repository security workflows
+```
+
+## Review evidence
+
+- [Qodo review summary](https://github.com/himanshu748/verdict/pull/1#issuecomment-5407889215), updated through the final reviewed commit
+- Six Qodo review threads resolved before merge
+- GitHub CI runs lint, typecheck, tests and the production build from a clean checkout
+- GitGuardian checks pull requests for exposed secrets
+
+Built for the WeMakeDevs Agent Harness Hackathon.
 
 ## License
 

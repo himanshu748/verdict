@@ -1,0 +1,149 @@
+name: Verdict approved investigation proof
+run-name: Verdict proof ${{ inputs.approval_nonce }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      approval_nonce:
+        description: Host-generated nonce bound by Verdict approval policy
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: verdict-proof-${{ inputs.approval_nonce }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/main' && github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      APPROVAL_NONCE: ${{ inputs.approval_nonce }}
+
+    steps:
+      - name: Validate the host nonce
+        shell: bash
+        run: |
+          if [[ ! "$APPROVAL_NONCE" =~ ^[a-f0-9]{32}$ ]]; then
+            echo "approval_nonce must be 32 lowercase hexadecimal characters" >&2
+            exit 1
+          fi
+
+      - name: Check out the dispatch commit without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Use Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.14.0
+
+      - name: Activate pinned pnpm
+        run: corepack prepare pnpm@11.23.0 --activate
+
+      - name: Install dependencies without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Verify the Verdict backend
+        run: pnpm --filter @verdict/agent test
+
+  publish-proof:
+    if: needs.verify.result == 'success' && github.run_attempt == 1
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      APPROVAL_NONCE: ${{ inputs.approval_nonce }}
+      GH_TOKEN: ${{ github.token }}
+      PROOF_BRANCH: verdict/proof-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.approval_nonce }}
+      PROOF_FILE: ${{ runner.temp }}/verdict-proof.json
+      PROOF_PATH: .verdict/proofs/run-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.approval_nonce }}.json
+
+    steps:
+      - name: Build the immutable proof document
+        shell: bash
+        run: |
+          if [[ ! "$APPROVAL_NONCE" =~ ^[a-f0-9]{32}$ ]]; then
+            echo "approval_nonce must be 32 lowercase hexadecimal characters" >&2
+            exit 1
+          fi
+
+          node --input-type=module -e '
+            import { writeFileSync } from "node:fs";
+            const proof = {
+              schemaVersion: 1,
+              kind: "VERDICT_WORKFLOW_PROOF",
+              evidenceMode: "INTEGRATION_PROOF",
+              approvalNonce: process.env.APPROVAL_NONCE,
+              sourceIssue: "https://github.com/truefoundry/trueforge/issues/417",
+              sourceIssueRuntimeReproduced: false,
+              verificationCommand: "pnpm --filter @verdict/agent test",
+              verificationOutcome: "PASSED",
+              workflow: process.env.GITHUB_WORKFLOW,
+              runId: Number(process.env.GITHUB_RUN_ID),
+              runAttempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+              commit: process.env.GITHUB_SHA,
+              createdAt: new Date().toISOString()
+            };
+            writeFileSync(process.env.PROOF_FILE, `${JSON.stringify(proof, null, 2)}\n`);
+          '
+
+      - name: Publish one proof commit and one draft PR through GitHub API
+        shell: bash
+        run: |
+          base_tree_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/commits/$GITHUB_SHA" --jq '.tree.sha')"
+          proof_content="$(<"$PROOF_FILE")"
+          blob_sha="$(gh api --method POST "repos/$GITHUB_REPOSITORY/git/blobs" \
+            -f content="$proof_content" \
+            -f encoding="utf-8" \
+            --jq '.sha')"
+
+          tree_payload="$(jq -n \
+            --arg base_tree "$base_tree_sha" \
+            --arg path "$PROOF_PATH" \
+            --arg sha "$blob_sha" \
+            '{base_tree: $base_tree, tree: [{path: $path, mode: "100644", type: "blob", sha: $sha}]}')"
+          tree_sha="$(gh api --method POST "repos/$GITHUB_REPOSITORY/git/trees" \
+            --input - \
+            --jq '.sha' <<<"$tree_payload")"
+
+          commit_payload="$(jq -n \
+            --arg message "chore: record Verdict proof $GITHUB_RUN_ID" \
+            --arg tree "$tree_sha" \
+            --arg parent "$GITHUB_SHA" \
+            '{message: $message, tree: $tree, parents: [$parent]}')"
+          proof_commit_sha="$(gh api --method POST "repos/$GITHUB_REPOSITORY/git/commits" \
+            --input - \
+            --jq '.sha' <<<"$commit_payload")"
+
+          ref_payload="$(jq -n \
+            --arg ref "refs/heads/$PROOF_BRANCH" \
+            --arg sha "$proof_commit_sha" \
+            '{ref: $ref, sha: $sha}')"
+          gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+            --input - <<<"$ref_payload" >/dev/null
+
+          pr_payload="$(jq -n \
+            --arg title "chore: record Verdict proof $GITHUB_RUN_ID" \
+            --arg head "$PROOF_BRANCH" \
+            --arg base "main" \
+            --arg body "This draft PR records a nonce-bound Verdict workflow run and backend verification. It references TrueForge issue #417, but does not claim runtime reproduction, a fix or approval provenance by itself." \
+            '{title: $title, head: $head, base: $base, body: $body, draft: true}')"
+          pr_url="$(gh api --method POST "repos/$GITHUB_REPOSITORY/pulls" \
+            --input - \
+            --jq '.html_url' <<<"$pr_payload")"
+
+          echo "Draft PR: $pr_url" >> "$GITHUB_STEP_SUMMARY"

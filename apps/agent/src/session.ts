@@ -1,4 +1,9 @@
-import type { TrueForge, TrueForgeApi } from "@truefoundry/trueforge-sdk";
+import { randomBytes } from "node:crypto";
+import type {
+  BaseRequestOptions,
+  TrueForge,
+  TrueForgeApi,
+} from "@truefoundry/trueforge-sdk";
 import { GITHUB_MCP_NAME, VERDICT_AGENT_NAME } from "./policy.js";
 
 export type VerdictTurnStatus =
@@ -13,6 +18,11 @@ export type VerdictTurnStatus =
 export interface InvestigationTarget {
   issueNumber: number;
   repository: string;
+}
+
+export interface VerdictRunConfig {
+  investigationTarget: InvestigationTarget;
+  workflowTarget: WorkflowDispatchTarget;
 }
 
 export interface PendingApproval {
@@ -61,10 +71,62 @@ export interface VerdictEventProjection {
  * boundary, never from model output, issue text or approval form fields.
  */
 export interface WorkflowDispatchTarget {
+  approvalNonce: string;
   owner: string;
   ref: string;
   repo: string;
   workflowId: string;
+}
+
+function requireEnvValue(env: NodeJS.ProcessEnv, name: string): string {
+  const value = env[name]?.trim();
+  if (!value) {
+    throw new Error(`${name} is required.`);
+  }
+  return value;
+}
+
+export function buildVerdictRunConfig(
+  env: NodeJS.ProcessEnv = process.env,
+  createApprovalNonce: () => string = () => randomBytes(16).toString("hex"),
+): VerdictRunConfig {
+  const issueNumberRaw = requireEnvValue(env, "VERDICT_ISSUE_NUMBER");
+  const issueNumber = Number(issueNumberRaw);
+  if (!Number.isSafeInteger(issueNumber) || issueNumber < 1) {
+    throw new Error("VERDICT_ISSUE_NUMBER must be a positive integer.");
+  }
+
+  const investigationTarget = {
+    issueNumber,
+    repository: requireEnvValue(env, "VERDICT_ISSUE_REPOSITORY"),
+  };
+  const workflowRef = requireEnvValue(env, "VERDICT_WORKFLOW_REF");
+  if (workflowRef !== "main") {
+    throw new Error("VERDICT_WORKFLOW_REF must be main for the proof workflow.");
+  }
+  const workflowTarget = assertTrustedWorkflowTarget({
+    approvalNonce: createApprovalNonce(),
+    owner: requireEnvValue(env, "VERDICT_WORKFLOW_OWNER"),
+    ref: workflowRef,
+    repo: requireEnvValue(env, "VERDICT_WORKFLOW_REPO"),
+    workflowId: requireEnvValue(env, "VERDICT_WORKFLOW_ID"),
+  });
+
+  buildInvestigationMessage(investigationTarget, workflowTarget);
+  return { investigationTarget, workflowTarget };
+}
+
+export function parseVerdictDecision(input: string): "approve" | "deny" {
+  const decision = input.trim();
+  if (decision === "APPROVE VERDICT WORKFLOW") {
+    return "approve";
+  }
+  if (decision === "DENY") {
+    return "deny";
+  }
+  throw new Error(
+    "Decision must be exactly APPROVE VERDICT WORKFLOW or DENY.",
+  );
 }
 
 export type ProjectionListener = (
@@ -399,16 +461,16 @@ function approvalKey(approval: {
 const WORKFLOW_TOOL_NAME = "actions_run_trigger";
 const WORKFLOW_METHOD = "run_workflow";
 const REQUIRED_WORKFLOW_ARGUMENT_KEYS = [
+  "inputs",
   "method",
   "owner",
   "ref",
   "repo",
   "workflow_id",
 ] as const;
-const OPTIONAL_WORKFLOW_ARGUMENT_KEYS = ["inputs"] as const;
 
 interface WorkflowDispatchArguments {
-  inputs?: Record<string, never>;
+  inputs: { approval_nonce: string };
   method: typeof WORKFLOW_METHOD;
   owner: string;
   ref: string;
@@ -431,6 +493,15 @@ function assertTrustedWorkflowTarget(
     }
   }
 
+  if (!/^[a-f0-9]{32}$/.test(target.approvalNonce)) {
+    throw new Error(
+      "Trusted workflow target approval nonce must be 32 lowercase hexadecimal characters.",
+    );
+  }
+  if (target.ref !== "main") {
+    throw new Error("Trusted workflow target must use the main branch.");
+  }
+
   return target;
 }
 
@@ -450,7 +521,6 @@ function parseWorkflowDispatchArguments(
 
   const allowedKeys = new Set<string>([
     ...REQUIRED_WORKFLOW_ARGUMENT_KEYS,
-    ...OPTIONAL_WORKFLOW_ARGUMENT_KEYS,
   ]);
   const extraKeys = Object.keys(parsed).filter((key) => !allowedKeys.has(key));
   if (extraKeys.length > 0) {
@@ -478,19 +548,24 @@ function parseWorkflowDispatchArguments(
     }
   }
 
-  if (Object.hasOwn(parsed, "inputs")) {
-    if (!isRecord(parsed.inputs) || Object.keys(parsed.inputs).length !== 0) {
-      throw new Error("Workflow inputs must be absent or an empty object.");
-    }
+  if (
+    !isRecord(parsed.inputs) ||
+    Object.keys(parsed.inputs).length !== 1 ||
+    typeof parsed.inputs.approval_nonce !== "string" ||
+    !/^[a-f0-9]{32}$/.test(parsed.inputs.approval_nonce)
+  ) {
+    throw new Error(
+      "Workflow inputs must contain only a 32-character lowercase hexadecimal approval_nonce.",
+    );
   }
 
   return {
+    inputs: { approval_nonce: parsed.inputs.approval_nonce },
     method: WORKFLOW_METHOD,
     owner: parsed.owner as string,
     ref: parsed.ref as string,
     repo: parsed.repo as string,
     workflow_id: parsed.workflow_id as string,
-    ...(Object.hasOwn(parsed, "inputs") ? { inputs: {} } : {}),
   };
 }
 
@@ -601,6 +676,11 @@ export function buildWorkflowApprovalBatch(
     ["repo", args.repo, target.repo],
     ["workflow_id", args.workflow_id, target.workflowId],
     ["ref", args.ref, target.ref],
+    [
+      "inputs.approval_nonce",
+      args.inputs.approval_nonce,
+      target.approvalNonce,
+    ],
   ].filter(([, actual, expected]) => actual !== expected);
 
   if (mismatches.length > 0) {
@@ -666,18 +746,27 @@ async function streamVerdictTurn(
   client: TrueForge,
   sessionId: string,
   input: TrueForgeApi.TurnInputItem[],
+  previousTurnId: string,
   initial: VerdictEventProjection = createVerdictProjection(sessionId),
   onProjection?: ProjectionListener,
+  requestOptions?: Pick<BaseRequestOptions, "maxRetries">,
 ): Promise<VerdictEventProjection> {
-  const stream = await client.sessions.createTurnStream(sessionId, {
-    input,
-    previousTurnId: "auto",
-  });
+  const stream = await client.sessions.createTurnStream(
+    sessionId,
+    {
+      input,
+      previousTurnId,
+    },
+    requestOptions,
+  );
 
   return consumeTurnStream(stream, initial, onProjection);
 }
 
-export function buildInvestigationMessage(target: InvestigationTarget): string {
+export function buildInvestigationMessage(
+  target: InvestigationTarget,
+  workflowTarget: WorkflowDispatchTarget,
+): string {
   const repository = target.repository.trim();
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) {
     throw new Error("repository must use the owner/name format.");
@@ -685,13 +774,28 @@ export function buildInvestigationMessage(target: InvestigationTarget): string {
   if (!Number.isSafeInteger(target.issueNumber) || target.issueNumber < 1) {
     throw new Error("issueNumber must be a positive integer.");
   }
+  const workflow = assertTrustedWorkflowTarget(workflowTarget);
 
-  return `Investigate GitHub issue ${repository}#${target.issueNumber}. Execute Hunter, Surgeon and Insurance in order. Keep observations tied to GitHub evidence and stop at each act's evidence boundary.`;
+  return `Investigate GitHub issue ${repository}#${target.issueNumber}. Execute Hunter, Surgeon and Insurance in order. Keep observations tied to GitHub evidence and stop at each act's evidence boundary. The only host-authorized write proposal is run_workflow for ${workflow.owner}/${workflow.repo}, workflow ${workflow.workflowId}, ref ${workflow.ref}, with approval_nonce ${workflow.approvalNonce} and no other inputs. Request approval before dispatch and do not infer success from approval.`;
+}
+
+function requirePausedTurnId(projection: VerdictEventProjection): string {
+  if (projection.status !== "approval_required") {
+    throw new Error(
+      "A workflow decision requires an approval_required projection.",
+    );
+  }
+  if (!projection.turnId) {
+    throw new Error("A workflow decision requires the exact paused turn id.");
+  }
+
+  return projection.turnId;
 }
 
 export async function startVerdictInvestigation(
   client: TrueForge,
   target: InvestigationTarget,
+  workflowTarget: WorkflowDispatchTarget,
   onProjection?: ProjectionListener,
 ): Promise<VerdictEventProjection> {
   const response = await client.sessions.create({
@@ -702,7 +806,13 @@ export async function startVerdictInvestigation(
   return streamVerdictTurn(
     client,
     response.data.id,
-    [{ type: "user.message", content: buildInvestigationMessage(target) }],
+    [
+      {
+        type: "user.message",
+        content: buildInvestigationMessage(target, workflowTarget),
+      },
+    ],
+    "auto",
     projection,
     onProjection,
   );
@@ -714,13 +824,16 @@ export async function approveVerdictWorkflow(
   trustedTarget: WorkflowDispatchTarget,
   onProjection?: ProjectionListener,
 ): Promise<VerdictEventProjection> {
+  const pausedTurnId = requirePausedTurnId(projection);
   const input = buildWorkflowApprovalBatch(projection, trustedTarget);
   return streamVerdictTurn(
     client,
     projection.sessionId,
     input,
+    pausedTurnId,
     { ...projection, pendingApprovals: [], status: "running" },
     onProjection,
+    { maxRetries: 0 },
   );
 }
 
@@ -730,11 +843,14 @@ export async function denyVerdictApprovals(
   reason: string,
   onProjection?: ProjectionListener,
 ): Promise<VerdictEventProjection> {
+  const pausedTurnId = requirePausedTurnId(projection);
   return streamVerdictTurn(
     client,
     projection.sessionId,
     denyAllPending(projection.pendingApprovals, reason),
+    pausedTurnId,
     { ...projection, pendingApprovals: [], status: "running" },
     onProjection,
+    { maxRetries: 0 },
   );
 }

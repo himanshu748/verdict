@@ -16,7 +16,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "server": "HOST=127.0.0.1 SQLITE_PATH=.trueforge.sqlite trueforge --port 8790",
-    "setup": "tsx --env-file=.env src/setup-cli.ts"
+    "setup": "tsx --env-file=.env src/setup-cli.ts",
+    "investigate": "tsx --env-file=.env src/run-cli.ts"
   },
   "dependencies": {
     "@truefoundry/trueforge": "0.1.4",

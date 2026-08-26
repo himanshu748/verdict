@@ -32,12 +32,20 @@ function StateIcon({ state }: { state: ExposureState }) {
 }
 
 function FrameTexture({ exposure }: { exposure: Exposure }) {
+  const seed = Number.parseInt(exposure.id, 10);
+  const bars = Array.from(
+    { length: 18 },
+    (_, index) => 14 + ((seed * 23 + index * 17) % 72),
+  );
+
   return (
-    <span
-      aria-hidden="true"
-      className="exposure-texture"
-      style={{ backgroundPosition: exposure.texturePosition }}
-    />
+    <span aria-hidden="true" className="exposure-texture">
+      <span className="exposure-signal">
+        {bars.map((height, index) => (
+          <i key={`${exposure.id}-${index}`} style={{ height: `${height}%` }} />
+        ))}
+      </span>
+    </span>
   );
 }
 
@@ -50,8 +58,8 @@ export function ExposurePreview() {
   return (
     <section className="exposure-preview" aria-label="Interactive sample condition matrix">
       <div className="preview-heading">
-        <span>Generated exposures (12)</span>
-        <span>Conceptual fixture</span>
+        <span>Demo condition matrix (12)</span>
+        <span>Generated fixture</span>
       </div>
 
       <div className="exposure-desktop">
@@ -95,7 +103,7 @@ export function ExposurePreview() {
         >
           <FrameTexture exposure={selected} />
           <div className="mobile-selected-copy">
-            <span>Selected exposure {selected.id}</span>
+            <span>Selected condition {selected.id}</span>
             <strong>{exposureStateLabel[selected.state]}</strong>
             <code>{selected.environment}</code>
             <span>{selected.matched} of {selected.total} generated records</span>
