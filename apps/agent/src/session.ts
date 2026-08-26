@@ -776,7 +776,7 @@ export function buildInvestigationMessage(
   }
   const workflow = assertTrustedWorkflowTarget(workflowTarget);
 
-  return `Investigate GitHub issue ${repository}#${target.issueNumber}. Execute Hunter, Surgeon and Insurance in order. Keep observations tied to GitHub evidence and stop at each act's evidence boundary. The only host-authorized write proposal is run_workflow for ${workflow.owner}/${workflow.repo}, workflow ${workflow.workflowId}, ref ${workflow.ref}, with approval_nonce ${workflow.approvalNonce} and no other inputs. Request approval before dispatch and do not infer success from approval.`;
+  return `Investigate GitHub issue ${repository}#${target.issueNumber}. Execute Hunter, Surgeon and Insurance in order. Keep observations tied to GitHub evidence and stop at each act's evidence boundary. An explicit unresolved result is a valid act completion when required evidence is unavailable inside the configured research boundary. The only host-authorized write proposal is run_workflow for ${workflow.owner}/${workflow.repo}, workflow ${workflow.workflowId}, ref ${workflow.ref}, with approval_nonce ${workflow.approvalNonce} and no other inputs. Request approval before dispatch and do not infer success from approval.`;
 }
 
 function requirePausedTurnId(projection: VerdictEventProjection): string {

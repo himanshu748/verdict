@@ -27,12 +27,55 @@ describe("Verdict TrueForge manifest policy", () => {
     const manifest = buildVerdictAgentManifest("openai/gpt-5.2");
 
     expect(manifest.config?.dynamicSubAgents?.enabled).toBe(true);
+    expect(manifest.model.params).toEqual({
+      enable_thinking: false,
+      maxTokens: 65_536,
+      parallelToolCalls: false,
+      reasoningEffort: "low",
+      temperature: 0,
+    });
     expect(manifest.config?.sandbox).toEqual({
       enabled: true,
       fileDownloads: false,
     });
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
       "Attempt to delegate each act to one dedicated dynamic subagent, sequentially",
+    );
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "Call create_sub_agent by itself, never alongside another tool call",
+    );
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "no more than 1,800 characters",
+    );
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "Do not paste the full instructions or prior packet",
+    );
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "Retry create_sub_agent at most once",
+    );
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "the root must not call GitHub, sandbox, file or discovery tools",
+    );
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "Each act's returned packet must be at most 900 characters",
+    );
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "only a download confirmation, SHA or resource pointer",
+    );
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "Do not search the sandbox for that file",
+    );
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "Before calling any GitHub, sandbox, file or discovery tool, your first action must be create_sub_agent for Hunter",
+    );
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "Hunter may make at most 8 total tool calls, including discovery, GitHub and sandbox calls",
+    );
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "The requested issue and its target repository are the complete research boundary",
+    );
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "Missing runtime dependencies, credentials or external service access require an immediate unresolved handoff",
     );
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
       "approval_nonce must match the host-provided policy exactly",
@@ -48,6 +91,9 @@ describe("Verdict TrueForge manifest policy", () => {
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
       "owner, repo, workflow_id, ref and inputs.approval_nonce must match",
     );
+    expect(manifest.mcpServers?.[0]?.preload).toBe(false);
+    expect(manifest.mcpServers?.[0]?.preloadTools).toEqual([]);
+    expect(manifest.config?.iterationLimit).toBe(32);
   });
 
   it("keeps the GitHub token only in connector headers", () => {

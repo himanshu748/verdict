@@ -437,19 +437,22 @@ describe("approval turn binding", () => {
 
 describe("trusted investigation handoff", () => {
   it("gives the model the exact host-owned workflow target", () => {
-    expect(
-      buildInvestigationMessage(
-        { issueNumber: 417, repository: "truefoundry/trueforge" },
-        {
-          approvalNonce: "0123456789abcdef0123456789abcdef",
-          owner: "himanshu748",
-          repo: "verdict",
-          workflowId: "verdict-day4-proof.yml",
-          ref: "main",
-        },
-      ),
-    ).toContain(
+    const message = buildInvestigationMessage(
+      { issueNumber: 417, repository: "truefoundry/trueforge" },
+      {
+        approvalNonce: "0123456789abcdef0123456789abcdef",
+        owner: "himanshu748",
+        repo: "verdict",
+        workflowId: "verdict-day4-proof.yml",
+        ref: "main",
+      },
+    );
+
+    expect(message).toContain(
       "The only host-authorized write proposal is run_workflow for himanshu748/verdict, workflow verdict-day4-proof.yml, ref main, with approval_nonce 0123456789abcdef0123456789abcdef and no other inputs.",
+    );
+    expect(message).toContain(
+      "An explicit unresolved result is a valid act completion",
     );
   });
 });

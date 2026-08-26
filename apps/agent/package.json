@@ -15,7 +15,7 @@
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "server": "HOST=127.0.0.1 SQLITE_PATH=.trueforge.sqlite trueforge --port 8790",
+    "server": "HOST=127.0.0.1 SQLITE_PATH=.trueforge.sqlite SERVER_EXECUTION_TIMEOUT_SECONDS=3600 trueforge --port 8790",
     "setup": "tsx --env-file=.env src/setup-cli.ts",
     "investigate": "tsx --env-file=.env src/run-cli.ts"
   },

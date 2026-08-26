@@ -8,12 +8,17 @@ import {
 export const HUGGING_FACE_PROVIDER_NAME = "huggingface";
 export const HUGGING_FACE_BASE_URL = "https://router.huggingface.co/v1";
 export const HUGGING_FACE_MODEL_NAME = "qwen3.8-27b";
-export const HUGGING_FACE_MODEL_ID = "Qwen/Qwen3.8-27B:deepinfra";
+export const HUGGING_FACE_MODEL_ID = "Qwen/Qwen3.8-27B:featherless-ai";
 export const HUGGING_FACE_MODEL_CONTEXT_LENGTH = 262_144;
 export const HUGGING_FACE_TRUEFORGE_MODEL =
   `${HUGGING_FACE_PROVIDER_NAME}/${HUGGING_FACE_MODEL_NAME}`;
+export const DAYTONA_EXEC_TIMEOUT_MS = 60_000;
+export const DAYTONA_AUTO_STOP_MINUTES = 5;
+export const DAYTONA_AUTO_ARCHIVE_MINUTES = 60;
+export const DAYTONA_AUTO_DELETE_MINUTES = 7_200;
 
 export interface VerdictRuntimeConfig {
+  daytonaApiKey: string;
   githubToken: string;
   huggingFaceToken: string;
   modelName: string;
@@ -23,6 +28,25 @@ export interface VerdictRuntimeResources {
   agent: TrueForgeApi.Agent;
   connector: TrueForgeApi.ConfiguredMcpServer;
   provider: TrueForgeApi.ConfiguredModelProvider;
+  sandboxProvider: TrueForgeApi.ConfiguredSandboxProvider;
+}
+
+export function buildDaytonaSandboxProviderManifest(
+  token: string,
+): TrueForgeApi.SandboxProviderManifest {
+  const apiKey = token.trim();
+  if (!apiKey) {
+    throw new Error("DAYTONA_API_KEY is required to configure the sandbox.");
+  }
+
+  return {
+    auth: { apiKey },
+    autoArchiveIntervalInMinutes: DAYTONA_AUTO_ARCHIVE_MINUTES,
+    autoDeleteIntervalInMinutes: DAYTONA_AUTO_DELETE_MINUTES,
+    autoStopIntervalInMinutes: DAYTONA_AUTO_STOP_MINUTES,
+    execTimeoutMs: DAYTONA_EXEC_TIMEOUT_MS,
+    type: "daytona",
+  };
 }
 
 export function buildHuggingFaceProviderManifest(
@@ -57,6 +81,17 @@ export async function upsertHuggingFaceProvider(
 ): Promise<TrueForgeApi.ConfiguredModelProvider> {
   const response = await client.settings.modelProviders.createOrUpdate({
     manifest: buildHuggingFaceProviderManifest(token),
+  });
+
+  return response.data;
+}
+
+export async function upsertDaytonaSandboxProvider(
+  client: TrueForge,
+  token: string,
+): Promise<TrueForgeApi.ConfiguredSandboxProvider> {
+  const response = await client.settings.sandboxProviders.createOrUpdate({
+    manifest: buildDaytonaSandboxProviderManifest(token),
   });
 
   return response.data;
@@ -103,8 +138,12 @@ export async function ensureVerdictRuntime(
     client,
     config.huggingFaceToken,
   );
+  const sandboxProvider = await upsertDaytonaSandboxProvider(
+    client,
+    config.daytonaApiKey,
+  );
   const connector = await upsertGitHubConnector(client, config.githubToken);
   const agent = await upsertVerdictAgent(client, config.modelName);
 
-  return { agent, connector, provider };
+  return { agent, connector, provider, sandboxProvider };
 }
