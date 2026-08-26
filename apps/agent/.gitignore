@@ -1,0 +1,6 @@
+.env
+.trueforge.sqlite
+.trueforge.sqlite-shm
+.trueforge.sqlite-wal
+dist/
+node_modules/

@@ -1,0 +1,21 @@
+{
+  "name": "verdict",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Evidence-first reproduction for intermittent software failures.",
+  "license": "MIT",
+  "packageManager": "pnpm@11.23.0",
+  "engines": {
+    "node": ">=22.14.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev --filter=@verdict/web",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test"
+  },
+  "devDependencies": {
+    "turbo": "2.10.11"
+  }
+}

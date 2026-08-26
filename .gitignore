@@ -1,9 +1,15 @@
 node_modules/
 .next/
+next-env.d.ts
+.turbo/
+dist/
 coverage/
 test-results/
 playwright-report/
+.brand-preview/
+*.bak
 .env
 .env.local
 .DS_Store
 *.log
+*.tsbuildinfo
