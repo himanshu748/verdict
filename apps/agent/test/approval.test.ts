@@ -1,9 +1,12 @@
-import type { TrueForgeApi } from "@truefoundry/trueforge-sdk";
+import type { TrueForge, TrueForgeApi } from "@truefoundry/trueforge-sdk";
 import { describe, expect, it } from "vitest";
 import { GITHUB_MCP_NAME } from "../src/policy.js";
 import {
+  approveVerdictWorkflow,
+  buildInvestigationMessage,
   buildWorkflowApprovalBatch,
   createVerdictProjection,
+  denyVerdictApprovals,
   denyAllPending,
   projectTurnEvent,
   type PendingApproval,
@@ -12,6 +15,7 @@ import {
 } from "../src/session.js";
 
 const trustedTarget: WorkflowDispatchTarget = {
+  approvalNonce: "0123456789abcdef0123456789abcdef",
   owner: "himanshu748",
   ref: "main",
   repo: "verdict",
@@ -19,6 +23,7 @@ const trustedTarget: WorkflowDispatchTarget = {
 };
 
 const validArguments = {
+  inputs: { approval_nonce: trustedTarget.approvalNonce },
   method: "run_workflow",
   owner: trustedTarget.owner,
   ref: trustedTarget.ref,
@@ -35,6 +40,7 @@ interface ApprovalProjectionOptions {
   toolCallId?: string;
   toolInfoName?: string;
   toolServerName?: string;
+  turnId?: string;
 }
 
 function createApprovalProjection(
@@ -43,6 +49,16 @@ function createApprovalProjection(
   const sourceEventId = options.sourceEventId ?? "event-message";
   const toolCallId = options.toolCallId ?? "call-workflow";
   let projection = projectTurnEvent(createVerdictProjection("session-1"), {
+    type: "turn.created",
+    id: "event-turn",
+    createdAt: "2026-08-26T00:00:00.000Z",
+    turnId: options.turnId ?? "turn-paused",
+    threadId: "thread-root",
+    previousTurnId: null,
+    state: { status: "running" },
+  } satisfies TrueForgeApi.TurnCreatedEvent);
+
+  projection = projectTurnEvent(projection, {
     type: "model.message",
     id: sourceEventId,
     createdAt: "2026-08-26T00:00:00.000Z",
@@ -82,25 +98,35 @@ function createApprovalProjection(
   return projection;
 }
 
-describe("workflow approval policy", () => {
-  it.each([undefined, {}])(
-    "allows the sole exact workflow dispatch with inputs %j",
-    (inputs) => {
-      const args = inputs === undefined ? validArguments : { ...validArguments, inputs };
-      const projection = createApprovalProjection({
-        argumentsJson: JSON.stringify(args),
-      });
-
-      expect(buildWorkflowApprovalBatch(projection, trustedTarget)).toEqual([
-        {
-          type: "user.tool_approval",
-          threadId: "thread-root",
-          toolCallId: "call-workflow",
-          approval: { status: "allow" },
-        },
-      ]);
+function createCapturingClient(
+  requests: Array<{ input: TrueForgeApi.TurnInputItem[]; previousTurnId: string }>,
+): TrueForge {
+  return {
+    sessions: {
+      createTurnStream: async (
+        _sessionId: string,
+        request: { input: TrueForgeApi.TurnInputItem[]; previousTurnId: string },
+      ) => {
+        requests.push(request);
+        return (async function* emptyStream() {})();
+      },
     },
-  );
+  } as unknown as TrueForge;
+}
+
+describe("workflow approval policy", () => {
+  it("allows only the exact workflow dispatch and approval nonce", () => {
+    const projection = createApprovalProjection();
+
+    expect(buildWorkflowApprovalBatch(projection, trustedTarget)).toEqual([
+      {
+        type: "user.tool_approval",
+        threadId: "thread-root",
+        toolCallId: "call-workflow",
+        approval: { status: "allow" },
+      },
+    ]);
+  });
 
   it.each(["cancel_workflow_run", "delete_workflow_run", "rerun_workflow"])(
     "rejects destructive or unsupported method %s",
@@ -143,18 +169,48 @@ describe("workflow approval policy", () => {
     },
   );
 
-  it.each([null, [], { issue: "417" }])(
-    "rejects non-empty or non-object workflow inputs %j",
+  it.each([
+    undefined,
+    null,
+    [],
+    {},
+    { issue: "417" },
+    { approval_nonce: "another-nonce" },
+    {
+      approval_nonce: trustedTarget.approvalNonce,
+      extra: "not allowed",
+    },
+  ])(
+    "rejects missing, mismatched or malformed workflow inputs %j",
     (inputs) => {
+      const args = { ...validArguments } as Record<string, unknown>;
+      if (inputs === undefined) {
+        delete args.inputs;
+      } else {
+        args.inputs = inputs;
+      }
       const projection = createApprovalProjection({
-        argumentsJson: JSON.stringify({ ...validArguments, inputs }),
+        argumentsJson: JSON.stringify(args),
       });
 
       expect(() =>
         buildWorkflowApprovalBatch(projection, trustedTarget),
-      ).toThrow("inputs must be absent or an empty object");
+      ).toThrow();
     },
   );
+
+  it("rejects a model nonce that does not match the host target", () => {
+    const projection = createApprovalProjection({
+      argumentsJson: JSON.stringify({
+        ...validArguments,
+        inputs: { approval_nonce: "fedcba9876543210fedcba9876543210" },
+      }),
+    });
+
+    expect(() => buildWorkflowApprovalBatch(projection, trustedTarget)).toThrow(
+      "inputs.approval_nonce",
+    );
+  });
 
   it.each(["{not-json", "[]", "null"])(
     "rejects malformed or non-object arguments %s",
@@ -272,6 +328,119 @@ describe("workflow approval policy", () => {
         ref: " main ",
       }),
     ).toThrow("Trusted workflow target ref");
+  });
+});
+
+describe("approval turn binding", () => {
+  it("resumes an approved workflow from the exact paused turn", async () => {
+    const requests: Array<{
+      input: TrueForgeApi.TurnInputItem[];
+      previousTurnId: string;
+    }> = [];
+    const projection = createApprovalProjection();
+
+    await approveVerdictWorkflow(
+      createCapturingClient(requests),
+      projection,
+      trustedTarget,
+    );
+
+    expect(requests).toEqual([
+      {
+        input: [
+          {
+            type: "user.tool_approval",
+            threadId: "thread-root",
+            toolCallId: "call-workflow",
+            approval: { status: "allow" },
+          },
+        ],
+        previousTurnId: "turn-paused",
+      },
+    ]);
+  });
+
+  it("rejects approval when the projection is not paused", async () => {
+    const projection = { ...createApprovalProjection(), status: "done" as const };
+
+    await expect(
+      approveVerdictWorkflow(
+        createCapturingClient([]),
+        projection,
+        trustedTarget,
+      ),
+    ).rejects.toThrow("approval_required");
+  });
+
+  it("rejects approval when the paused turn id is missing", async () => {
+    const projection = { ...createApprovalProjection(), turnId: null };
+
+    await expect(
+      approveVerdictWorkflow(
+        createCapturingClient([]),
+        projection,
+        trustedTarget,
+      ),
+    ).rejects.toThrow("paused turn id");
+  });
+
+  it("resumes a denial from the exact paused turn", async () => {
+    const requests: Array<{
+      input: TrueForgeApi.TurnInputItem[];
+      previousTurnId: string;
+    }> = [];
+    const projection = createApprovalProjection();
+
+    await denyVerdictApprovals(
+      createCapturingClient(requests),
+      projection,
+      "Maintainer denied the write.",
+    );
+
+    expect(requests[0]?.previousTurnId).toBe("turn-paused");
+  });
+
+  it("rejects denial when the projection is not paused", async () => {
+    const projection = { ...createApprovalProjection(), status: "done" as const };
+
+    await expect(
+      denyVerdictApprovals(
+        createCapturingClient([]),
+        projection,
+        "Maintainer denied the write.",
+      ),
+    ).rejects.toThrow("approval_required");
+  });
+
+  it("rejects denial when the paused turn id is missing", async () => {
+    const projection = { ...createApprovalProjection(), turnId: null };
+
+    await expect(
+      denyVerdictApprovals(
+        createCapturingClient([]),
+        projection,
+        "Maintainer denied the write.",
+      ),
+    ).rejects.toThrow("paused turn id");
+  });
+});
+
+describe("trusted investigation handoff", () => {
+  it("gives the model the exact host-owned workflow target", () => {
+    expect(
+      buildInvestigationMessage(
+        { issueNumber: 417, repository: "truefoundry/trueforge" },
+        {
+          approvalNonce: "0123456789abcdef0123456789abcdef",
+          owner: "himanshu748",
+          repo: "verdict",
+          workflowId: "verdict-day4-proof.yml",
+          ref: "main",
+        },
+      ),
+    ).toContain(
+      "The only host-authorized write proposal is run_workflow for himanshu748/verdict, workflow verdict-day4-proof.yml, ref main, with approval_nonce 0123456789abcdef0123456789abcdef and no other inputs.",
+    );
   });
 });
 

@@ -1,6 +1,6 @@
 # Verdict TrueForge sidecar
 
-This package connects Verdict to a local TrueForge 0.1.x server. It registers a remote GitHub MCP connector, upserts the Verdict agent, starts streamed investigations and resumes approval pauses through a fail-closed policy boundary.
+This package connects Verdict to a local TrueForge 0.1.x server. It registers Hugging Face Inference Providers, a remote GitHub MCP connector and the Verdict agent. It also starts streamed investigations and resumes approval pauses through a fail-closed policy boundary.
 
 ## Install and run
 
@@ -11,7 +11,9 @@ pnpm install --filter @verdict/agent
 cp apps/agent/.env.example apps/agent/.env
 ```
 
-Fill in `GITHUB_TOKEN` and `TRUEFORGE_MODEL`. Configure that model and its provider credentials in TrueForge Settings first. Then use two terminals:
+Fill in `GITHUB_TOKEN` and `HF_TOKEN`. `GITHUB_TOKEN` must be a fine-grained PAT. Select only `himanshu748/verdict` when creating it. Verdict validates the token format but GitHub does not expose its selected-repository list through this setup path, so the operator must verify that scope. The Hugging Face token needs the **Make calls to Inference Providers** permission. `TRUEFORGE_MODEL` defaults to `huggingface/qwen3.8-27b`.
+
+The setup command upserts a custom OpenAI-compatible provider at `https://router.huggingface.co/v1` and maps the TrueForge model to `Qwen/Qwen3.8-27B:deepinfra`. Hugging Face reports tool-calling and structured-output support for that route. Then use two terminals:
 
 ```sh
 pnpm --filter @verdict/agent server
@@ -21,13 +23,21 @@ pnpm --filter @verdict/agent server
 pnpm --filter @verdict/agent setup
 ```
 
+Start the bounded investigation after setup:
+
+```sh
+pnpm --filter @verdict/agent investigate
+```
+
+The command streams observed TrueForge subagent events. If the model proposes the configured workflow, the command prints both the authoritative tool call and trusted host target. Only the exact phrase `APPROVE VERDICT WORKFLOW` allows it. `DENY` rejects the pending call. Any other input fails closed and leaves the turn paused. Each run receives a host-generated approval nonce. Before approval, the host snapshots matching workflow runs and the exact target commit. After approval, it accepts proof only when one new nonce-bound run tests that commit, creates a one-file draft PR and publishes an exact proof document whose contents match the GitHub run.
+
 The server command binds TrueForge to `127.0.0.1:8790` and writes its standalone SQLite database inside `apps/agent`. TrueForge also creates local sandbox storage in the operating system's application-data directory. The SDK rejects non-loopback base URLs.
 
 ## Policy boundary
 
-The agent can see only `issue_read`, `get_file_contents`, `search_code`, `list_commits` and `actions_run_trigger`. TrueForge requires explicit approval for `actions_run_trigger`. Its sandbox is enabled and agent-produced file downloads are disabled. The GitHub token is placed only in the connector's `Authorization` header, never in the agent manifest or session prompt.
+The agent can see only `issue_read`, `get_file_contents`, `search_code`, `list_commits` and `actions_run_trigger`. The connector requests that exact allowlist through GitHub's `X-MCP-Tools` header because Actions tools are excluded from the remote server defaults. TrueForge requires explicit approval for `actions_run_trigger`. Its sandbox is enabled and agent-produced file downloads are disabled. The GitHub token is placed only in the connector's `Authorization` header. The Hugging Face token is placed only in the model-provider manifest. Neither secret enters the agent manifest, session prompt or setup output.
 
-The allow path retains each tool call from its authoritative `model.message` event and correlates the pending approval by source event ID, thread ID and tool call ID. It permits exactly one call from the configured GitHub connector, with method `run_workflow`, exact owner, repository, workflow ID and ref values, absent or empty inputs and no additional arguments. The expected target is a trusted host policy passed to `approveVerdictWorkflow`. It must come from application configuration, never from model output, issue content or editable approval fields. Unresolved, duplicated or mismatched metadata fails closed. Bulk denial remains available and does not require trusted metadata because denial cannot execute the tool.
+The allow path retains each tool call from its authoritative `model.message` event and correlates the pending approval by source event ID, thread ID and tool call ID. It permits exactly one call from the configured GitHub connector, with method `run_workflow`, exact owner, repository, workflow ID, ref and approval nonce values and no additional arguments. Approval and denial resume the exact paused turn ID, never the session's newest automatic tip. The expected target is a trusted host policy passed to `approveVerdictWorkflow`. It must come from application configuration, never from model output, issue content or editable approval fields. Unresolved, duplicated or mismatched metadata fails closed. Bulk denial remains available and does not require trusted metadata because denial cannot execute the tool.
 
 Dynamic subagents are enabled and the instructions bound Hunter, Surgeon and Insurance by evidence limits. TrueForge 0.1.x does not expose a policy that guarantees an exact subagent count. Consumers should project `thread.created` events and show what actually ran.
 
@@ -35,9 +45,10 @@ Dynamic subagents are enabled and the instructions bound Hunter, Surgeon and Ins
 
 - Unit tests validate local policy and approval authorization without starting TrueForge. A live server, configured model and GitHub MCP access are still required for an end-to-end run.
 - `list_commits` supports bounded suspect-range analysis, not a real executable bisect.
-- An approved `actions_run_trigger` dispatch does not by itself create a pull request. The target repository must provide a reviewed workflow that creates a draft PR and returns evidence of its URL.
+- The reviewed `verdict-day4-proof.yml` workflow runs backend verification with read-only repository permissions. A separate publication job executes no repository code, records an explicitly labelled integration proof and creates a draft PR through GitHub's API. The workflow must exist on `main`, and repository Actions settings must allow workflows to create pull requests, before dispatch.
 - The bundled standalone SQLite mode is for a local hackathon demo, not production or multi-replica deployment.
-- Token scope and repository workflow permissions still apply. Use the least privileged GitHub token that can read evidence and dispatch the intended workflow.
+- Token scope and repository workflow permissions still apply. The fine-grained token needs repository metadata read, contents read, issues read, actions read/write and pull requests read for the configured repository. Do not grant access to unrelated private repositories.
+- GitHub MCP read-tool repository arguments are model-controlled. The fine-grained PAT's selected repositories are the enforcement boundary, not Verdict's token-prefix check.
 
 Run offline checks with:
 
