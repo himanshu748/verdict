@@ -69,7 +69,7 @@ jobs:
       APPROVAL_NONCE: ${{ inputs.approval_nonce }}
       GH_TOKEN: ${{ github.token }}
       PROOF_BRANCH: verdict/proof-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.approval_nonce }}
-      PROOF_FILE: ${{ runner.temp }}/verdict-proof.json
+      PROOF_FILE: ${{ github.workspace }}/.verdict-proof.json
       PROOF_PATH: .verdict/proofs/run-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.approval_nonce }}.json
 
     steps:
