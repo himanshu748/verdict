@@ -492,6 +492,8 @@ describe("approval turn binding", () => {
   it("records one denial, cancels model continuation and terminates safely", async () => {
     const captured: CapturedDeniedTurn = { cancellations: [], turns: [] };
     const projection = createApprovalProjection();
+    projection.assistantText =
+      "verdict: unresolved\nremaining_uncertainty: source fix is not proven";
     projection.threads = [
       {
         name: "thread-root",
@@ -533,7 +535,7 @@ describe("approval turn binding", () => {
     ]);
     expect(result).toMatchObject({
       assistantText:
-        "Workflow dispatch denied by the maintainer. No workflow was dispatched and no draft pull request was created.",
+        "verdict: unresolved\nremaining_uncertainty: source fix is not proven\n\nThe current workflow proposal was denied by the maintainer. This denial did not dispatch that proposal or create a draft pull request from it.",
       error: null,
       pendingApprovals: [],
       status: "done",

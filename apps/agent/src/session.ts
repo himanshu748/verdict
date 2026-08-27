@@ -956,6 +956,9 @@ export async function denyVerdictApprovals(
   _onProjection?: ProjectionListener,
 ): Promise<VerdictEventProjection> {
   const pausedTurnId = requirePausedTurnId(projection);
+  const accumulatedText = projection.assistantText.trimEnd();
+  const denialNotice =
+    "The current workflow proposal was denied by the maintainer. This denial did not dispatch that proposal or create a draft pull request from it.";
   const deniedThreadIds = new Set(
     projection.pendingApprovals.map((approval) => approval.threadId),
   );
@@ -971,8 +974,9 @@ export async function denyVerdictApprovals(
 
   return {
     ...projection,
-    assistantText:
-      "Workflow dispatch denied by the maintainer. No workflow was dispatched and no draft pull request was created.",
+    assistantText: accumulatedText
+      ? `${accumulatedText}\n\n${denialNotice}`
+      : denialNotice,
     error: null,
     modelToolCalls: [],
     pendingApprovals: [],
