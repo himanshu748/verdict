@@ -1,0 +1,12 @@
+{
+  "name": "@verdict/trueforge-core-0.1.4-source",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.14.0"
+  },
+  "dependencies": {
+    "@truefoundry/trueforge-core": "0.1.4",
+    "redis": "5.12.1"
+  }
+}

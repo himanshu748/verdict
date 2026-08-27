@@ -31,6 +31,7 @@ function candidateDecisionParser(): ParseDecision | undefined {
 const validEnv: NodeJS.ProcessEnv = {
   VERDICT_ISSUE_NUMBER: "417",
   VERDICT_ISSUE_REPOSITORY: "truefoundry/trueforge",
+  VERDICT_SOURCE_MANIFEST_ID: "trueforge-417-v1",
   VERDICT_WORKFLOW_ID: "verdict-day4-proof.yml",
   VERDICT_WORKFLOW_OWNER: "himanshu748",
   VERDICT_WORKFLOW_REF: "main",
@@ -48,6 +49,7 @@ describe("Verdict run configuration", () => {
       investigationTarget: {
         issueNumber: 417,
         repository: "truefoundry/trueforge",
+        sourceManifestId: "trueforge-417-v1",
       },
       workflowTarget: {
         approvalNonce: "0123456789abcdef0123456789abcdef",
@@ -77,6 +79,7 @@ describe("Verdict run configuration", () => {
   it.each([
     "VERDICT_ISSUE_REPOSITORY",
     "VERDICT_ISSUE_NUMBER",
+    "VERDICT_SOURCE_MANIFEST_ID",
     "VERDICT_WORKFLOW_OWNER",
     "VERDICT_WORKFLOW_REPO",
     "VERDICT_WORKFLOW_ID",
@@ -99,6 +102,51 @@ describe("Verdict run configuration", () => {
       ).toThrow("VERDICT_ISSUE_NUMBER must be a positive integer");
     },
   );
+
+  it("rejects an unknown source manifest", () => {
+    expect(() =>
+      candidateBuilder()?.({
+        ...validEnv,
+        VERDICT_SOURCE_MANIFEST_ID: "trueforge-417-unreviewed",
+      }),
+    ).toThrow("Unknown VERDICT_SOURCE_MANIFEST_ID");
+  });
+
+  it("rejects a repository that does not match the manifest", () => {
+    expect(() =>
+      candidateBuilder()?.({
+        ...validEnv,
+        VERDICT_ISSUE_REPOSITORY: "someone/fork",
+      }),
+    ).toThrow("VERDICT_ISSUE_REPOSITORY must match");
+  });
+
+  it("rejects an issue that does not match the manifest", () => {
+    expect(() =>
+      candidateBuilder()?.({
+        ...validEnv,
+        VERDICT_ISSUE_NUMBER: "418",
+      }),
+    ).toThrow("VERDICT_ISSUE_NUMBER must match");
+  });
+
+  it("ignores obsolete independent source fields", () => {
+    expect(
+      candidateBuilder()?.(
+        {
+          ...validEnv,
+          VERDICT_SOURCE_COMMIT: "0000000000000000000000000000000000000000",
+          VERDICT_SOURCE_PACKAGE: "@truefoundry/trueforge-core@latest",
+          VERDICT_SOURCE_PACKAGE_INTEGRITY: "sha512-untrusted",
+        },
+        () => "0123456789abcdef0123456789abcdef",
+      ).investigationTarget,
+    ).toEqual({
+      issueNumber: 417,
+      repository: "truefoundry/trueforge",
+      sourceManifestId: "trueforge-417-v1",
+    });
+  });
 });
 
 describe("Verdict operator decision", () => {

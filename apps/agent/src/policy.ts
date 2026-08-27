@@ -25,18 +25,31 @@ Security and truth rules:
 - Request at most one actions_run_trigger call at a time. Its method must be run_workflow and its owner, repo, workflow_id, ref and inputs.approval_nonce must match the host-provided policy exactly. Include no other inputs or arguments.
 - Before requesting approval, state the workflow, ref, inputs, expected effect and why it is necessary.
 
-Run three ordered acts. Attempt to delegate each act to one dedicated dynamic subagent, sequentially because later acts depend on earlier evidence. Name or title them Hunter, Surgeon and Insurance. Give each one act, a concrete question and a hard stopping condition. Start the next act only after the prior act returns. If dynamic subagent creation is unavailable or fails, continue that act in the root thread and disclose the fallback. Never claim a subagent ran unless the runtime emitted its thread events.
+Run three ordered acts. Attempt to delegate each act to one dedicated dynamic subagent, sequentially because later acts depend on earlier evidence. The root thread is an orchestrator, not an investigator. Before calling any GitHub, sandbox, file or discovery tool, your first action must be create_sub_agent for Hunter. After Hunter returns, create Surgeon before any other tool call. After Surgeon returns, create Insurance before any other tool call. Do not perform an act's evidence work in the root thread while its subagent is available. Name or title the subagents Hunter, Surgeon and Insurance. Give each one act, a concrete question and a hard stopping condition. Call create_sub_agent by itself, never alongside another tool call, and provide exactly two arguments: a non-empty name and a minimal, self-contained input of no more than 1,800 characters. Include the target, decisive facts from prior acts, this act's budget, hard stop and exact return fields. Hunter's input must include the exact trusted source bootstrap command, issue commit, artifact provenance commit and shared vulnerable-file blob. Add the trusted workflow target only when the act needs it. Do not paste the full instructions or prior packet. Retry create_sub_agent at most once, using an input of no more than 1,000 characters. If it is unavailable or the retry fails, disclose the failure and produce an explicit unresolved packet from evidence already returned. During that fallback the root must not call GitHub, sandbox, file or discovery tools. Start the next act after the packet. Never claim a subagent ran unless the runtime emitted its thread events.
+
+Research budget and boundary:
+- The requested issue, its target repository and the trusted host-pinned source manifest are the complete research boundary. Existing TrueForge sandbox capabilities and configured GitHub tools are the complete execution environment.
+- Hunter may make at most 8 total tool calls, including discovery, GitHub and sandbox calls. Surgeon may make at most 6. Insurance may make at most 4, including its approval-gated workflow proposal.
+- Each act returns the smallest self-contained evidence packet needed by the next act. An explicit unresolved packet is a successful act completion when its proof standard cannot be met.
+- Each act's returned packet must be at most 900 characters. Return fields and evidence only. Do not narrate reasoning.
+- Hunter may execute the trusted source bootstrap command from the host message exactly once and unchanged. It is the only permitted network acquisition. The checksum-pinned script installs a checksum-verified Node runtime and the complete immutable npm lock closure. It verifies every registry package integrity, audits npm signatures, verifies the SLSA package provenance and proves the vulnerable source blob is identical at the issue and provenance commits. Do not clone repositories, inspect dependency repositories or acquire anything outside that exact command.
+- If the trusted bootstrap fails, stop unresolved with its exit status and sanitized error. Never improvise another download, package version, lockfile, mirror or install command.
+- If get_file_contents returns only a download confirmation, SHA or resource pointer without inline contents, treat the file contents as unavailable. Do not search the sandbox for that file. Stop unresolved when that content is required.
+- Hunter may use at most two sandbox commands: the exact bootstrap followed by one deterministic reproduction command. Surgeon and Insurance may use at most one sandbox command each. After bootstrap, reuse its persistent source directory and pinned Node binary. Never reinstall.
 
 ACT 1, HUNTER
 - Read the requested issue and relevant repository files.
+- Call issue_read at most once and read at most four files from the target repository. Do not fetch sources from other repositories.
+- Before source-level execution, run the trusted source bootstrap unchanged. Run one bounded reproduction command against that installed artifact and record the command, configured timeout, elapsed boundary and contrasting responsive condition.
 - Propose at most 8 condition cells and at most 3 repetitions per cell.
 - Vary one named condition at a time. Reject duplicate or unlabelled observations.
 - A reproduction requires a deterministic command, environment fingerprint, observed output and at least one contrasting non-failing condition.
-- If execution requires a repository workflow, prepare one actions_run_trigger request and wait for approval. Do not infer results before the workflow reports them.
+- Do not request the Verdict integration-proof workflow during Hunter. It cannot reproduce the source issue.
 - Stop with either a minimal reproduction packet or an explicit unresolved result and missing evidence.
 
 ACT 2, SURGEON
 - Start only after Hunter identifies a stable reproducer or a precise unresolved boundary.
+- Use Hunter's packet first. Make at most one list_commits call and read at most two additional files from the target repository.
 - Inspect at most 12 relevant commits per pass, narrowing by code ownership, changed paths and the reproduced condition.
 - list_commits is history inspection, not a real bisect. Call the result a suspect range until workflow evidence tests a boundary.
 - Never author or claim a patch. Produce a suspect range, rationale and the smallest next validation step.
@@ -92,11 +105,20 @@ export function buildVerdictAgentManifest(
   }
 
   return {
-    model: { name: model },
+    model: {
+      name: model,
+      params: {
+        enable_thinking: false,
+        maxTokens: 32_768,
+        parallelToolCalls: false,
+        reasoningEffort: "low",
+        temperature: 0,
+      },
+    },
     instructions: VERDICT_AGENT_INSTRUCTIONS,
     config: {
       dynamicSubAgents: { enabled: true },
-      iterationLimit: 64,
+      iterationLimit: 32,
       sandbox: {
         enabled: true,
         fileDownloads: false,
@@ -107,12 +129,7 @@ export function buildVerdictAgentManifest(
         name: GITHUB_MCP_NAME,
         enableTools: [...GITHUB_TOOL_WHITELIST],
         preload: false,
-        preloadTools: [
-          "issue_read",
-          "get_file_contents",
-          "search_code",
-          "list_commits",
-        ],
+        preloadTools: [],
         requireApprovalForTools: [...APPROVAL_REQUIRED_TOOLS],
       },
     ],

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { assertLoopbackTrueForgeUrl } from "../src/client.js";
+import {
+  assertLoopbackTrueForgeUrl,
+  createTrueForgeClient,
+} from "../src/client.js";
 
 describe("TrueForge client boundary", () => {
   it.each([
@@ -16,5 +19,14 @@ describe("TrueForge client boundary", () => {
     "http://user:password@127.0.0.1:8790",
   ])("rejects non-local or credential-bearing URL %s", (url) => {
     expect(() => assertLoopbackTrueForgeUrl(url)).toThrow();
+  });
+
+  it("keeps a live three-act SSE turn open for up to one hour", () => {
+    const client = createTrueForgeClient();
+    const options = Reflect.get(client, "_options") as {
+      timeoutInSeconds?: number;
+    };
+
+    expect(options.timeoutInSeconds).toBe(3600);
   });
 });

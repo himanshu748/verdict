@@ -5,6 +5,12 @@ import type {
   TrueForgeApi,
 } from "@truefoundry/trueforge-sdk";
 import { GITHUB_MCP_NAME, VERDICT_AGENT_NAME } from "./policy.js";
+import {
+  buildSourceBootstrapCommand,
+  VERDICT_NODE_BINARY,
+  VERDICT_SOURCE_DIR,
+} from "./source-bootstrap.js";
+import { resolveTrustedSourceManifest } from "./source-manifest.js";
 
 export type VerdictTurnStatus =
   | "idle"
@@ -18,6 +24,7 @@ export type VerdictTurnStatus =
 export interface InvestigationTarget {
   issueNumber: number;
   repository: string;
+  sourceManifestId: string;
 }
 
 export interface VerdictRunConfig {
@@ -49,7 +56,7 @@ export interface ModelToolCallMetadata {
 
 export interface DynamicThreadProjection {
   name: string;
-  status: "running" | "done" | "error";
+  status: "running" | "done" | "cancelled" | "error";
   threadId: string;
   title: string;
 }
@@ -96,9 +103,27 @@ export function buildVerdictRunConfig(
     throw new Error("VERDICT_ISSUE_NUMBER must be a positive integer.");
   }
 
+  const sourceManifestId = requireEnvValue(
+    env,
+    "VERDICT_SOURCE_MANIFEST_ID",
+  );
+  const sourceManifest = resolveTrustedSourceManifest(sourceManifestId);
+  const repository = requireEnvValue(env, "VERDICT_ISSUE_REPOSITORY");
+  if (repository !== sourceManifest.repository) {
+    throw new Error(
+      "VERDICT_ISSUE_REPOSITORY must match the trusted source manifest.",
+    );
+  }
+  if (issueNumber !== sourceManifest.issueNumber) {
+    throw new Error(
+      "VERDICT_ISSUE_NUMBER must match the trusted source manifest.",
+    );
+  }
+
   const investigationTarget = {
     issueNumber,
-    repository: requireEnvValue(env, "VERDICT_ISSUE_REPOSITORY"),
+    repository,
+    sourceManifestId: sourceManifest.id,
   };
   const workflowRef = requireEnvValue(env, "VERDICT_WORKFLOW_REF");
   if (workflowRef !== "main") {
@@ -460,6 +485,7 @@ function approvalKey(approval: {
 
 const WORKFLOW_TOOL_NAME = "actions_run_trigger";
 const WORKFLOW_METHOD = "run_workflow";
+const TRUEFORGE_CALL_TOOL_NAME = "call_tool";
 const REQUIRED_WORKFLOW_ARGUMENT_KEYS = [
   "inputs",
   "method",
@@ -505,16 +531,7 @@ function assertTrustedWorkflowTarget(
   return target;
 }
 
-function parseWorkflowDispatchArguments(
-  argumentsJson: string,
-): WorkflowDispatchArguments {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(argumentsJson) as unknown;
-  } catch {
-    throw new Error("Workflow tool arguments must be valid JSON.");
-  }
-
+function parseWorkflowDispatchValue(parsed: unknown): WorkflowDispatchArguments {
   if (!isRecord(parsed)) {
     throw new Error("Workflow tool arguments must be a JSON object.");
   }
@@ -567,6 +584,106 @@ function parseWorkflowDispatchArguments(
     repo: parsed.repo as string,
     workflow_id: parsed.workflow_id as string,
   };
+}
+
+function parseWorkflowDispatchArguments(
+  argumentsJson: string,
+): WorkflowDispatchArguments {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(argumentsJson) as unknown;
+  } catch {
+    throw new Error("Workflow tool arguments must be valid JSON.");
+  }
+
+  return parseWorkflowDispatchValue(parsed);
+}
+
+function parseCallToolEnvelope(
+  argumentsJson: string,
+): WorkflowDispatchArguments {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(argumentsJson) as unknown;
+  } catch {
+    throw new Error("TrueForge call_tool arguments must be valid JSON.");
+  }
+  if (!isRecord(parsed)) {
+    throw new Error("TrueForge call_tool arguments must be a JSON object.");
+  }
+
+  const requiredKeys = ["input", "mcp_server", "tool_name"] as const;
+  const allowedKeys = new Set<string>(requiredKeys);
+  const extraKeys = Object.keys(parsed).filter((key) => !allowedKeys.has(key));
+  if (extraKeys.length > 0) {
+    throw new Error(
+      `TrueForge call_tool arguments contain forbidden fields: ${extraKeys.join(", ")}.`,
+    );
+  }
+  const missingKeys = requiredKeys.filter((key) => !Object.hasOwn(parsed, key));
+  if (missingKeys.length > 0) {
+    throw new Error(
+      `TrueForge call_tool arguments are missing required fields: ${missingKeys.join(", ")}.`,
+    );
+  }
+  if (parsed.mcp_server !== GITHUB_MCP_NAME) {
+    throw new Error(`TrueForge call_tool must use ${GITHUB_MCP_NAME}.`);
+  }
+  if (parsed.tool_name !== WORKFLOW_TOOL_NAME) {
+    throw new Error(
+      `TrueForge call_tool must use ${WORKFLOW_TOOL_NAME}.`,
+    );
+  }
+
+  return parseWorkflowDispatchValue(parsed.input);
+}
+
+function isWorkflowToolCallCandidate(toolCall: ModelToolCallMetadata): boolean {
+  if (
+    toolCall.functionName === WORKFLOW_TOOL_NAME ||
+    toolCall.toolInfo?.name === WORKFLOW_TOOL_NAME
+  ) {
+    return true;
+  }
+  if (
+    toolCall.functionName !== TRUEFORGE_CALL_TOOL_NAME ||
+    toolCall.toolInfo?.type !== "truefoundry-system" ||
+    toolCall.toolInfo.name !== TRUEFORGE_CALL_TOOL_NAME
+  ) {
+    return false;
+  }
+
+  try {
+    const parsed = JSON.parse(toolCall.argumentsJson) as unknown;
+    return isRecord(parsed) && parsed.tool_name === WORKFLOW_TOOL_NAME;
+  } catch {
+    return false;
+  }
+}
+
+function parseAuthorizedWorkflowToolCall(
+  toolCall: ModelToolCallMetadata,
+): WorkflowDispatchArguments {
+  if (
+    toolCall.functionName === WORKFLOW_TOOL_NAME &&
+    toolCall.toolInfo?.type === "mcp" &&
+    toolCall.toolInfo.name === WORKFLOW_TOOL_NAME &&
+    toolCall.toolInfo.serverName === GITHUB_MCP_NAME
+  ) {
+    return parseWorkflowDispatchArguments(toolCall.argumentsJson);
+  }
+
+  if (
+    toolCall.functionName === TRUEFORGE_CALL_TOOL_NAME &&
+    toolCall.toolInfo?.type === "truefoundry-system" &&
+    toolCall.toolInfo.name === TRUEFORGE_CALL_TOOL_NAME
+  ) {
+    return parseCallToolEnvelope(toolCall.argumentsJson);
+  }
+
+  throw new Error(
+    "Only the configured GitHub actions_run_trigger tool may be approved.",
+  );
 }
 
 function toolInfoMatches(
@@ -639,9 +756,7 @@ function resolveAuthoritativePendingToolCall(
   }
 
   const workflowCalls = projection.modelToolCalls.filter(
-    (observed) =>
-      observed.functionName === WORKFLOW_TOOL_NAME ||
-      observed.toolInfo?.name === WORKFLOW_TOOL_NAME,
+    isWorkflowToolCallCandidate,
   );
   if (workflowCalls.length !== 1 || workflowCalls[0] !== toolCall) {
     throw new Error(
@@ -659,18 +774,7 @@ export function buildWorkflowApprovalBatch(
   const target = assertTrustedWorkflowTarget(trustedTarget);
   const { pending, toolCall } = resolveAuthoritativePendingToolCall(projection);
 
-  if (
-    toolCall.functionName !== WORKFLOW_TOOL_NAME ||
-    toolCall.toolInfo?.type !== "mcp" ||
-    toolCall.toolInfo.name !== WORKFLOW_TOOL_NAME ||
-    toolCall.toolInfo.serverName !== GITHUB_MCP_NAME
-  ) {
-    throw new Error(
-      "Only the configured GitHub actions_run_trigger tool may be approved.",
-    );
-  }
-
-  const args = parseWorkflowDispatchArguments(toolCall.argumentsJson);
+  const args = parseAuthorizedWorkflowToolCall(toolCall);
   const mismatches = [
     ["owner", args.owner, target.owner],
     ["repo", args.repo, target.repo],
@@ -774,9 +878,17 @@ export function buildInvestigationMessage(
   if (!Number.isSafeInteger(target.issueNumber) || target.issueNumber < 1) {
     throw new Error("issueNumber must be a positive integer.");
   }
+  const sourceManifest = resolveTrustedSourceManifest(target.sourceManifestId);
+  if (repository !== sourceManifest.repository) {
+    throw new Error("repository must match the trusted source manifest.");
+  }
+  if (target.issueNumber !== sourceManifest.issueNumber) {
+    throw new Error("issueNumber must match the trusted source manifest.");
+  }
+  const bootstrapCommand = buildSourceBootstrapCommand(sourceManifest.id);
   const workflow = assertTrustedWorkflowTarget(workflowTarget);
 
-  return `Investigate GitHub issue ${repository}#${target.issueNumber}. Execute Hunter, Surgeon and Insurance in order. Keep observations tied to GitHub evidence and stop at each act's evidence boundary. The only host-authorized write proposal is run_workflow for ${workflow.owner}/${workflow.repo}, workflow ${workflow.workflowId}, ref ${workflow.ref}, with approval_nonce ${workflow.approvalNonce} and no other inputs. Request approval before dispatch and do not infer success from approval.`;
+  return `Investigate GitHub issue ${repository}#${target.issueNumber} at issue commit ${sourceManifest.issueCommit}. Execute Hunter, Surgeon and Insurance in order. Keep observations tied to GitHub evidence and stop at each act's evidence boundary. An explicit unresolved result is a valid act completion when required evidence is unavailable inside the configured research boundary. Trusted source manifest ${sourceManifest.id} executes ${sourceManifest.artifact.spec} with integrity ${sourceManifest.artifact.integrity}. Its npm SLSA provenance names commit ${sourceManifest.artifact.provenanceCommit}, which is not the issue commit. The vulnerable file ${sourceManifest.source.path} has the identical Git blob ${sourceManifest.source.blobSha1} at both commits. Do not claim that the full commits are identical or that the package was built from the issue commit. Hunter must treat this chain as unverified until the bootstrap succeeds. Hunter may execute this exact bootstrap command once and unchanged: <trusted_source_bootstrap>${bootstrapCommand}</trusted_source_bootstrap>. It verifies and installs the complete locked artifact closure without credentials in ${VERDICT_SOURCE_DIR}. Run reproduction code with ${VERDICT_NODE_BINARY} and cwd ${VERDICT_SOURCE_DIR}. The only host-authorized write proposal is run_workflow for ${workflow.owner}/${workflow.repo}, workflow ${workflow.workflowId}, ref ${workflow.ref}, with approval_nonce ${workflow.approvalNonce} and no other inputs. Request approval before dispatch and do not infer success from approval.`;
 }
 
 function requirePausedTurnId(projection: VerdictEventProjection): string {
@@ -841,16 +953,39 @@ export async function denyVerdictApprovals(
   client: TrueForge,
   projection: VerdictEventProjection,
   reason: string,
-  onProjection?: ProjectionListener,
+  _onProjection?: ProjectionListener,
 ): Promise<VerdictEventProjection> {
   const pausedTurnId = requirePausedTurnId(projection);
-  return streamVerdictTurn(
-    client,
+  const accumulatedText = projection.assistantText.trimEnd();
+  const denialNotice =
+    "The current workflow proposal was denied by the maintainer. This denial did not dispatch that proposal or create a draft pull request from it.";
+  const deniedThreadIds = new Set(
+    projection.pendingApprovals.map((approval) => approval.threadId),
+  );
+  const response = await client.sessions.createTurn(
     projection.sessionId,
-    denyAllPending(projection.pendingApprovals, reason),
-    pausedTurnId,
-    { ...projection, pendingApprovals: [], status: "running" },
-    onProjection,
+    {
+      input: denyAllPending(projection.pendingApprovals, reason),
+      previousTurnId: pausedTurnId,
+    },
     { maxRetries: 0 },
   );
+  await client.sessions.cancel(projection.sessionId, {}, { maxRetries: 0 });
+
+  return {
+    ...projection,
+    assistantText: accumulatedText
+      ? `${accumulatedText}\n\n${denialNotice}`
+      : denialNotice,
+    error: null,
+    modelToolCalls: [],
+    pendingApprovals: [],
+    status: "done",
+    threads: projection.threads.map((thread) =>
+      deniedThreadIds.has(thread.threadId) && thread.status === "running"
+        ? { ...thread, status: "cancelled" }
+        : thread,
+    ),
+    turnId: response.data.id,
+  };
 }

@@ -39,6 +39,7 @@ interface ApprovalProjectionOptions {
   sourceEventId?: string;
   toolCallId?: string;
   toolInfoName?: string;
+  toolInfoType?: "mcp" | "truefoundry-system";
   toolServerName?: string;
   turnId?: string;
 }
@@ -72,12 +73,18 @@ function createApprovalProjection(
           name: options.functionName ?? "actions_run_trigger",
           arguments: options.argumentsJson ?? JSON.stringify(validArguments),
         },
-        toolInfo: {
-          type: "mcp",
-          name: options.toolInfoName ?? "actions_run_trigger",
-          serverId: "server-github",
-          serverName: options.toolServerName ?? GITHUB_MCP_NAME,
-        },
+        toolInfo:
+          options.toolInfoType === "truefoundry-system"
+            ? {
+                type: "truefoundry-system",
+                name: options.toolInfoName ?? "call_tool",
+              }
+            : {
+                type: "mcp",
+                name: options.toolInfoName ?? "actions_run_trigger",
+                serverId: "server-github",
+                serverName: options.toolServerName ?? GITHUB_MCP_NAME,
+              },
       },
     ],
   } satisfies TrueForgeApi.ModelMessageEvent);
@@ -104,6 +111,15 @@ interface CapturedTurnRequest {
   requestOptions: { maxRetries?: number } | undefined;
 }
 
+interface CapturedDeniedTurn {
+  cancellations: Array<{
+    request: Record<string, never>;
+    requestOptions: { maxRetries?: number } | undefined;
+    sessionId: string;
+  }>;
+  turns: CapturedTurnRequest[];
+}
+
 function createCapturingClient(requests: CapturedTurnRequest[]): TrueForge {
   return {
     sessions: {
@@ -114,6 +130,41 @@ function createCapturingClient(requests: CapturedTurnRequest[]): TrueForge {
       ) => {
         requests.push({ ...request, requestOptions });
         return (async function* emptyStream() {})();
+      },
+    },
+  } as unknown as TrueForge;
+}
+
+function createDenialCapturingClient(captured: CapturedDeniedTurn): TrueForge {
+  return {
+    sessions: {
+      cancel: async (
+        sessionId: string,
+        request: Record<string, never>,
+        requestOptions?: { maxRetries?: number },
+      ) => {
+        captured.cancellations.push({ request, requestOptions, sessionId });
+        return {};
+      },
+      createTurn: async (
+        _sessionId: string,
+        request: {
+          input: TrueForgeApi.TurnInputItem[];
+          previousTurnId: string;
+        },
+        requestOptions?: { maxRetries?: number },
+      ) => {
+        captured.turns.push({ ...request, requestOptions });
+        return {
+          data: {
+            createdAt: "2026-08-27T00:00:00.000Z",
+            id: "turn-denied",
+            input: request.input,
+            previousTurnId: request.previousTurnId,
+            sessionId: "session-1",
+            state: { status: "running" as const },
+          },
+        };
       },
     },
   } as unknown as TrueForge;
@@ -131,6 +182,48 @@ describe("workflow approval policy", () => {
         approval: { status: "allow" },
       },
     ]);
+  });
+
+  it("allows the exact workflow dispatch through TrueForge call_tool", () => {
+    const projection = createApprovalProjection({
+      argumentsJson: JSON.stringify({
+        mcp_server: GITHUB_MCP_NAME,
+        tool_name: "actions_run_trigger",
+        input: validArguments,
+      }),
+      functionName: "call_tool",
+      toolInfoName: "call_tool",
+      toolInfoType: "truefoundry-system",
+    });
+
+    expect(buildWorkflowApprovalBatch(projection, trustedTarget)).toEqual([
+      {
+        type: "user.tool_approval",
+        threadId: "thread-root",
+        toolCallId: "call-workflow",
+        approval: { status: "allow" },
+      },
+    ]);
+  });
+
+  it.each([
+    { mcp_server: "another-server" },
+    { tool_name: "delete_file" },
+    { extra: "not allowed" },
+  ])("rejects a tampered call_tool envelope %#", (change) => {
+    const projection = createApprovalProjection({
+      argumentsJson: JSON.stringify({
+        mcp_server: GITHUB_MCP_NAME,
+        tool_name: "actions_run_trigger",
+        input: validArguments,
+        ...change,
+      }),
+      functionName: "call_tool",
+      toolInfoName: "call_tool",
+      toolInfoType: "truefoundry-system",
+    });
+
+    expect(() => buildWorkflowApprovalBatch(projection, trustedTarget)).toThrow();
   });
 
   it.each(["cancel_workflow_run", "delete_workflow_run", "rerun_workflow"])(
@@ -396,18 +489,66 @@ describe("approval turn binding", () => {
     ).rejects.toThrow("paused turn id");
   });
 
-  it("resumes a denial from the exact paused turn", async () => {
-    const requests: CapturedTurnRequest[] = [];
+  it("records one denial, cancels model continuation and terminates safely", async () => {
+    const captured: CapturedDeniedTurn = { cancellations: [], turns: [] };
     const projection = createApprovalProjection();
+    projection.assistantText =
+      "verdict: unresolved\nremaining_uncertainty: source fix is not proven";
+    projection.threads = [
+      {
+        name: "thread-root",
+        status: "running",
+        threadId: "thread-root",
+        title: "thread-root",
+      },
+    ];
 
-    await denyVerdictApprovals(
-      createCapturingClient(requests),
+    const result = await denyVerdictApprovals(
+      createDenialCapturingClient(captured),
       projection,
       "Maintainer denied the write.",
     );
 
-    expect(requests[0]?.previousTurnId).toBe("turn-paused");
-    expect(requests[0]?.requestOptions).toEqual({ maxRetries: 0 });
+    expect(captured.turns).toEqual([
+      {
+        input: [
+          {
+            type: "user.tool_approval",
+            threadId: "thread-root",
+            toolCallId: "call-workflow",
+            approval: {
+              status: "deny",
+              reason: "Maintainer denied the write.",
+            },
+          },
+        ],
+        previousTurnId: "turn-paused",
+        requestOptions: { maxRetries: 0 },
+      },
+    ]);
+    expect(captured.cancellations).toEqual([
+      {
+        request: {},
+        requestOptions: { maxRetries: 0 },
+        sessionId: "session-1",
+      },
+    ]);
+    expect(result).toMatchObject({
+      assistantText:
+        "verdict: unresolved\nremaining_uncertainty: source fix is not proven\n\nThe current workflow proposal was denied by the maintainer. This denial did not dispatch that proposal or create a draft pull request from it.",
+      error: null,
+      pendingApprovals: [],
+      status: "done",
+      threads: [
+        {
+          name: "thread-root",
+          status: "cancelled",
+          threadId: "thread-root",
+          title: "thread-root",
+        },
+      ],
+      turnId: "turn-denied",
+    });
   });
 
   it("rejects denial when the projection is not paused", async () => {
@@ -437,20 +578,82 @@ describe("approval turn binding", () => {
 
 describe("trusted investigation handoff", () => {
   it("gives the model the exact host-owned workflow target", () => {
-    expect(
+    const message = buildInvestigationMessage(
+      {
+        issueNumber: 417,
+        repository: "truefoundry/trueforge",
+        sourceManifestId: "trueforge-417-v1",
+      },
+      {
+        approvalNonce: "0123456789abcdef0123456789abcdef",
+        owner: "himanshu748",
+        repo: "verdict",
+        workflowId: "verdict-day4-proof.yml",
+        ref: "main",
+      },
+    );
+
+    expect(message).toContain(
+      "The only host-authorized write proposal is run_workflow for himanshu748/verdict, workflow verdict-day4-proof.yml, ref main, with approval_nonce 0123456789abcdef0123456789abcdef and no other inputs.",
+    );
+    expect(message).toContain(
+      "An explicit unresolved result is a valid act completion",
+    );
+    expect(message).toContain(
+      "issue truefoundry/trueforge#417 at issue commit 506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
+    );
+    expect(message).toContain(
+      "npm SLSA provenance names commit fba492fafd853e897793e8f5f6c5cbd1174e3676, which is not the issue commit",
+    );
+    expect(message).toContain(
+      "identical Git blob 1fba52e1673e560bce4aa897cb88000dfee75652 at both commits",
+    );
+    expect(message).toContain(
+      "<trusted_source_bootstrap>set -eu",
+    );
+    expect(message).toContain("@truefoundry/trueforge-core@0.1.4");
+    expect(message).toContain("/opt/verdict-node/bin/node");
+    expect(message).toContain(
+      "Do not claim that the full commits are identical or that the package was built from the issue commit.",
+    );
+  });
+
+  it("rejects a repository outside the trusted source manifest", () => {
+    expect(() =>
       buildInvestigationMessage(
-        { issueNumber: 417, repository: "truefoundry/trueforge" },
+        {
+          issueNumber: 417,
+          repository: "someone/trueforge-fork",
+          sourceManifestId: "trueforge-417-v1",
+        },
         {
           approvalNonce: "0123456789abcdef0123456789abcdef",
           owner: "himanshu748",
+          ref: "main",
           repo: "verdict",
           workflowId: "verdict-day4-proof.yml",
-          ref: "main",
         },
       ),
-    ).toContain(
-      "The only host-authorized write proposal is run_workflow for himanshu748/verdict, workflow verdict-day4-proof.yml, ref main, with approval_nonce 0123456789abcdef0123456789abcdef and no other inputs.",
-    );
+    ).toThrow("repository must match the trusted source manifest");
+  });
+
+  it("rejects an issue outside the trusted source manifest", () => {
+    expect(() =>
+      buildInvestigationMessage(
+        {
+          issueNumber: 418,
+          repository: "truefoundry/trueforge",
+          sourceManifestId: "trueforge-417-v1",
+        },
+        {
+          approvalNonce: "0123456789abcdef0123456789abcdef",
+          owner: "himanshu748",
+          ref: "main",
+          repo: "verdict",
+          workflowId: "verdict-day4-proof.yml",
+        },
+      ),
+    ).toThrow("issueNumber must match the trusted source manifest");
   });
 });
 

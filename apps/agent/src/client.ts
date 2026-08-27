@@ -36,7 +36,7 @@ export function createTrueForgeClient(
 
   return new TrueForge({
     baseUrl,
-    timeoutInSeconds: config.timeoutInSeconds ?? 600,
+    timeoutInSeconds: config.timeoutInSeconds ?? 3600,
     ...(config.token ? { token: config.token } : {}),
   });
 }
