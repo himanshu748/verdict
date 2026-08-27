@@ -441,12 +441,7 @@ describe("trusted investigation handoff", () => {
       {
         issueNumber: 417,
         repository: "truefoundry/trueforge",
-        sourceCommit: "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
-        sourcePackage: {
-          integrity:
-            "sha512-IQX4xHtjR931H49Bj5mivsbAmTS+1DyV56kUN59FevwmUqEzxYVhaC4S/fuGIrQUFY4W8ASU+WHzvOuNBCICeA==",
-          spec: "@truefoundry/trueforge-core@0.1.4",
-        },
+        sourceManifestId: "trueforge-417-v1",
       },
       {
         approvalNonce: "0123456789abcdef0123456789abcdef",
@@ -464,13 +459,60 @@ describe("trusted investigation handoff", () => {
       "An explicit unresolved result is a valid act completion",
     );
     expect(message).toContain(
-      "issue truefoundry/trueforge#417 at commit 506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
+      "issue truefoundry/trueforge#417 at issue commit 506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
+    );
+    expect(message).toContain(
+      "npm SLSA provenance names commit fba492fafd853e897793e8f5f6c5cbd1174e3676, which is not the issue commit",
+    );
+    expect(message).toContain(
+      "identical Git blob 1fba52e1673e560bce4aa897cb88000dfee75652 at both commits",
     );
     expect(message).toContain(
       "<trusted_source_bootstrap>set -eu",
     );
     expect(message).toContain("@truefoundry/trueforge-core@0.1.4");
     expect(message).toContain("/opt/verdict-node/bin/node");
+    expect(message).toContain(
+      "Do not claim that the full commits are identical or that the package was built from the issue commit.",
+    );
+  });
+
+  it("rejects a repository outside the trusted source manifest", () => {
+    expect(() =>
+      buildInvestigationMessage(
+        {
+          issueNumber: 417,
+          repository: "someone/trueforge-fork",
+          sourceManifestId: "trueforge-417-v1",
+        },
+        {
+          approvalNonce: "0123456789abcdef0123456789abcdef",
+          owner: "himanshu748",
+          ref: "main",
+          repo: "verdict",
+          workflowId: "verdict-day4-proof.yml",
+        },
+      ),
+    ).toThrow("repository must match the trusted source manifest");
+  });
+
+  it("rejects an issue outside the trusted source manifest", () => {
+    expect(() =>
+      buildInvestigationMessage(
+        {
+          issueNumber: 418,
+          repository: "truefoundry/trueforge",
+          sourceManifestId: "trueforge-417-v1",
+        },
+        {
+          approvalNonce: "0123456789abcdef0123456789abcdef",
+          owner: "himanshu748",
+          ref: "main",
+          repo: "verdict",
+          workflowId: "verdict-day4-proof.yml",
+        },
+      ),
+    ).toThrow("issueNumber must match the trusted source manifest");
   });
 });
 

@@ -31,10 +31,7 @@ function candidateDecisionParser(): ParseDecision | undefined {
 const validEnv: NodeJS.ProcessEnv = {
   VERDICT_ISSUE_NUMBER: "417",
   VERDICT_ISSUE_REPOSITORY: "truefoundry/trueforge",
-  VERDICT_SOURCE_COMMIT: "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
-  VERDICT_SOURCE_PACKAGE: "@truefoundry/trueforge-core@0.1.4",
-  VERDICT_SOURCE_PACKAGE_INTEGRITY:
-    "sha512-IQX4xHtjR931H49Bj5mivsbAmTS+1DyV56kUN59FevwmUqEzxYVhaC4S/fuGIrQUFY4W8ASU+WHzvOuNBCICeA==",
+  VERDICT_SOURCE_MANIFEST_ID: "trueforge-417-v1",
   VERDICT_WORKFLOW_ID: "verdict-day4-proof.yml",
   VERDICT_WORKFLOW_OWNER: "himanshu748",
   VERDICT_WORKFLOW_REF: "main",
@@ -52,12 +49,7 @@ describe("Verdict run configuration", () => {
       investigationTarget: {
         issueNumber: 417,
         repository: "truefoundry/trueforge",
-        sourceCommit: "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
-        sourcePackage: {
-          integrity:
-            "sha512-IQX4xHtjR931H49Bj5mivsbAmTS+1DyV56kUN59FevwmUqEzxYVhaC4S/fuGIrQUFY4W8ASU+WHzvOuNBCICeA==",
-          spec: "@truefoundry/trueforge-core@0.1.4",
-        },
+        sourceManifestId: "trueforge-417-v1",
       },
       workflowTarget: {
         approvalNonce: "0123456789abcdef0123456789abcdef",
@@ -87,9 +79,7 @@ describe("Verdict run configuration", () => {
   it.each([
     "VERDICT_ISSUE_REPOSITORY",
     "VERDICT_ISSUE_NUMBER",
-    "VERDICT_SOURCE_COMMIT",
-    "VERDICT_SOURCE_PACKAGE",
-    "VERDICT_SOURCE_PACKAGE_INTEGRITY",
+    "VERDICT_SOURCE_MANIFEST_ID",
     "VERDICT_WORKFLOW_OWNER",
     "VERDICT_WORKFLOW_REPO",
     "VERDICT_WORKFLOW_ID",
@@ -113,22 +103,49 @@ describe("Verdict run configuration", () => {
     },
   );
 
-  it("rejects an abbreviated or non-hex source commit", () => {
+  it("rejects an unknown source manifest", () => {
     expect(() =>
       candidateBuilder()?.({
         ...validEnv,
-        VERDICT_SOURCE_COMMIT: "506bf5c",
+        VERDICT_SOURCE_MANIFEST_ID: "trueforge-417-unreviewed",
       }),
-    ).toThrow("full 40-character commit SHA");
+    ).toThrow("Unknown VERDICT_SOURCE_MANIFEST_ID");
   });
 
-  it("rejects a floating source package version", () => {
+  it("rejects a repository that does not match the manifest", () => {
     expect(() =>
       candidateBuilder()?.({
         ...validEnv,
-        VERDICT_SOURCE_PACKAGE: "@truefoundry/trueforge-core@latest",
+        VERDICT_ISSUE_REPOSITORY: "someone/fork",
       }),
-    ).toThrow("exact npm package version");
+    ).toThrow("VERDICT_ISSUE_REPOSITORY must match");
+  });
+
+  it("rejects an issue that does not match the manifest", () => {
+    expect(() =>
+      candidateBuilder()?.({
+        ...validEnv,
+        VERDICT_ISSUE_NUMBER: "418",
+      }),
+    ).toThrow("VERDICT_ISSUE_NUMBER must match");
+  });
+
+  it("ignores obsolete independent source fields", () => {
+    expect(
+      candidateBuilder()?.(
+        {
+          ...validEnv,
+          VERDICT_SOURCE_COMMIT: "0000000000000000000000000000000000000000",
+          VERDICT_SOURCE_PACKAGE: "@truefoundry/trueforge-core@latest",
+          VERDICT_SOURCE_PACKAGE_INTEGRITY: "sha512-untrusted",
+        },
+        () => "0123456789abcdef0123456789abcdef",
+      ).investigationTarget,
+    ).toEqual({
+      issueNumber: 417,
+      repository: "truefoundry/trueforge",
+      sourceManifestId: "trueforge-417-v1",
+    });
   });
 });
 

@@ -72,13 +72,22 @@ describe("Verdict TrueForge manifest policy", () => {
       "Hunter may make at most 8 total tool calls, including discovery, GitHub and sandbox calls",
     );
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
-      "the trusted host-pinned source artifact are the complete research boundary",
+      "the trusted host-pinned source manifest are the complete research boundary",
     );
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
       "Hunter may execute the trusted source bootstrap command from the host message exactly once and unchanged",
     );
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
-      "Do not clone repositories, download any other archive, install any other package",
+      "installs a checksum-verified Node runtime and the complete immutable npm lock closure",
+    );
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "audits npm signatures, verifies the SLSA package provenance",
+    );
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "issue commit, artifact provenance commit and shared vulnerable-file blob",
+    );
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "Do not clone repositories, inspect dependency repositories or acquire anything outside that exact command",
     );
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
       "Hunter may use at most two sandbox commands",
