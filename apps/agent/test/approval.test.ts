@@ -39,6 +39,7 @@ interface ApprovalProjectionOptions {
   sourceEventId?: string;
   toolCallId?: string;
   toolInfoName?: string;
+  toolInfoType?: "mcp" | "truefoundry-system";
   toolServerName?: string;
   turnId?: string;
 }
@@ -72,12 +73,18 @@ function createApprovalProjection(
           name: options.functionName ?? "actions_run_trigger",
           arguments: options.argumentsJson ?? JSON.stringify(validArguments),
         },
-        toolInfo: {
-          type: "mcp",
-          name: options.toolInfoName ?? "actions_run_trigger",
-          serverId: "server-github",
-          serverName: options.toolServerName ?? GITHUB_MCP_NAME,
-        },
+        toolInfo:
+          options.toolInfoType === "truefoundry-system"
+            ? {
+                type: "truefoundry-system",
+                name: options.toolInfoName ?? "call_tool",
+              }
+            : {
+                type: "mcp",
+                name: options.toolInfoName ?? "actions_run_trigger",
+                serverId: "server-github",
+                serverName: options.toolServerName ?? GITHUB_MCP_NAME,
+              },
       },
     ],
   } satisfies TrueForgeApi.ModelMessageEvent);
@@ -104,6 +111,15 @@ interface CapturedTurnRequest {
   requestOptions: { maxRetries?: number } | undefined;
 }
 
+interface CapturedDeniedTurn {
+  cancellations: Array<{
+    request: Record<string, never>;
+    requestOptions: { maxRetries?: number } | undefined;
+    sessionId: string;
+  }>;
+  turns: CapturedTurnRequest[];
+}
+
 function createCapturingClient(requests: CapturedTurnRequest[]): TrueForge {
   return {
     sessions: {
@@ -114,6 +130,41 @@ function createCapturingClient(requests: CapturedTurnRequest[]): TrueForge {
       ) => {
         requests.push({ ...request, requestOptions });
         return (async function* emptyStream() {})();
+      },
+    },
+  } as unknown as TrueForge;
+}
+
+function createDenialCapturingClient(captured: CapturedDeniedTurn): TrueForge {
+  return {
+    sessions: {
+      cancel: async (
+        sessionId: string,
+        request: Record<string, never>,
+        requestOptions?: { maxRetries?: number },
+      ) => {
+        captured.cancellations.push({ request, requestOptions, sessionId });
+        return {};
+      },
+      createTurn: async (
+        _sessionId: string,
+        request: {
+          input: TrueForgeApi.TurnInputItem[];
+          previousTurnId: string;
+        },
+        requestOptions?: { maxRetries?: number },
+      ) => {
+        captured.turns.push({ ...request, requestOptions });
+        return {
+          data: {
+            createdAt: "2026-08-27T00:00:00.000Z",
+            id: "turn-denied",
+            input: request.input,
+            previousTurnId: request.previousTurnId,
+            sessionId: "session-1",
+            state: { status: "running" as const },
+          },
+        };
       },
     },
   } as unknown as TrueForge;
@@ -131,6 +182,48 @@ describe("workflow approval policy", () => {
         approval: { status: "allow" },
       },
     ]);
+  });
+
+  it("allows the exact workflow dispatch through TrueForge call_tool", () => {
+    const projection = createApprovalProjection({
+      argumentsJson: JSON.stringify({
+        mcp_server: GITHUB_MCP_NAME,
+        tool_name: "actions_run_trigger",
+        input: validArguments,
+      }),
+      functionName: "call_tool",
+      toolInfoName: "call_tool",
+      toolInfoType: "truefoundry-system",
+    });
+
+    expect(buildWorkflowApprovalBatch(projection, trustedTarget)).toEqual([
+      {
+        type: "user.tool_approval",
+        threadId: "thread-root",
+        toolCallId: "call-workflow",
+        approval: { status: "allow" },
+      },
+    ]);
+  });
+
+  it.each([
+    { mcp_server: "another-server" },
+    { tool_name: "delete_file" },
+    { extra: "not allowed" },
+  ])("rejects a tampered call_tool envelope %#", (change) => {
+    const projection = createApprovalProjection({
+      argumentsJson: JSON.stringify({
+        mcp_server: GITHUB_MCP_NAME,
+        tool_name: "actions_run_trigger",
+        input: validArguments,
+        ...change,
+      }),
+      functionName: "call_tool",
+      toolInfoName: "call_tool",
+      toolInfoType: "truefoundry-system",
+    });
+
+    expect(() => buildWorkflowApprovalBatch(projection, trustedTarget)).toThrow();
   });
 
   it.each(["cancel_workflow_run", "delete_workflow_run", "rerun_workflow"])(
@@ -396,18 +489,64 @@ describe("approval turn binding", () => {
     ).rejects.toThrow("paused turn id");
   });
 
-  it("resumes a denial from the exact paused turn", async () => {
-    const requests: CapturedTurnRequest[] = [];
+  it("records one denial, cancels model continuation and terminates safely", async () => {
+    const captured: CapturedDeniedTurn = { cancellations: [], turns: [] };
     const projection = createApprovalProjection();
+    projection.threads = [
+      {
+        name: "thread-root",
+        status: "running",
+        threadId: "thread-root",
+        title: "thread-root",
+      },
+    ];
 
-    await denyVerdictApprovals(
-      createCapturingClient(requests),
+    const result = await denyVerdictApprovals(
+      createDenialCapturingClient(captured),
       projection,
       "Maintainer denied the write.",
     );
 
-    expect(requests[0]?.previousTurnId).toBe("turn-paused");
-    expect(requests[0]?.requestOptions).toEqual({ maxRetries: 0 });
+    expect(captured.turns).toEqual([
+      {
+        input: [
+          {
+            type: "user.tool_approval",
+            threadId: "thread-root",
+            toolCallId: "call-workflow",
+            approval: {
+              status: "deny",
+              reason: "Maintainer denied the write.",
+            },
+          },
+        ],
+        previousTurnId: "turn-paused",
+        requestOptions: { maxRetries: 0 },
+      },
+    ]);
+    expect(captured.cancellations).toEqual([
+      {
+        request: {},
+        requestOptions: { maxRetries: 0 },
+        sessionId: "session-1",
+      },
+    ]);
+    expect(result).toMatchObject({
+      assistantText:
+        "Workflow dispatch denied by the maintainer. No workflow was dispatched and no draft pull request was created.",
+      error: null,
+      pendingApprovals: [],
+      status: "done",
+      threads: [
+        {
+          name: "thread-root",
+          status: "cancelled",
+          threadId: "thread-root",
+          title: "thread-root",
+        },
+      ],
+      turnId: "turn-denied",
+    });
   });
 
   it("rejects denial when the projection is not paused", async () => {
