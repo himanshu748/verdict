@@ -72,10 +72,19 @@ describe("Verdict TrueForge manifest policy", () => {
       "Hunter may make at most 8 total tool calls, including discovery, GitHub and sandbox calls",
     );
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
-      "The requested issue and its target repository are the complete research boundary",
+      "the trusted host-pinned source artifact are the complete research boundary",
     );
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
-      "Missing runtime dependencies, credentials or external service access require an immediate unresolved handoff",
+      "Hunter may execute the trusted source bootstrap command from the host message exactly once and unchanged",
+    );
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "Do not clone repositories, download any other archive, install any other package",
+    );
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "Hunter may use at most two sandbox commands",
+    );
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "Before source-level execution, run the trusted source bootstrap unchanged",
     );
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
       "approval_nonce must match the host-provided policy exactly",

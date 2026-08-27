@@ -438,7 +438,16 @@ describe("approval turn binding", () => {
 describe("trusted investigation handoff", () => {
   it("gives the model the exact host-owned workflow target", () => {
     const message = buildInvestigationMessage(
-      { issueNumber: 417, repository: "truefoundry/trueforge" },
+      {
+        issueNumber: 417,
+        repository: "truefoundry/trueforge",
+        sourceCommit: "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
+        sourcePackage: {
+          integrity:
+            "sha512-IQX4xHtjR931H49Bj5mivsbAmTS+1DyV56kUN59FevwmUqEzxYVhaC4S/fuGIrQUFY4W8ASU+WHzvOuNBCICeA==",
+          spec: "@truefoundry/trueforge-core@0.1.4",
+        },
+      },
       {
         approvalNonce: "0123456789abcdef0123456789abcdef",
         owner: "himanshu748",
@@ -454,6 +463,14 @@ describe("trusted investigation handoff", () => {
     expect(message).toContain(
       "An explicit unresolved result is a valid act completion",
     );
+    expect(message).toContain(
+      "issue truefoundry/trueforge#417 at commit 506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
+    );
+    expect(message).toContain(
+      "<trusted_source_bootstrap>set -eu",
+    );
+    expect(message).toContain("@truefoundry/trueforge-core@0.1.4");
+    expect(message).toContain("/opt/verdict-node/bin/node");
   });
 });
 

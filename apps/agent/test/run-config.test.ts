@@ -31,6 +31,10 @@ function candidateDecisionParser(): ParseDecision | undefined {
 const validEnv: NodeJS.ProcessEnv = {
   VERDICT_ISSUE_NUMBER: "417",
   VERDICT_ISSUE_REPOSITORY: "truefoundry/trueforge",
+  VERDICT_SOURCE_COMMIT: "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
+  VERDICT_SOURCE_PACKAGE: "@truefoundry/trueforge-core@0.1.4",
+  VERDICT_SOURCE_PACKAGE_INTEGRITY:
+    "sha512-IQX4xHtjR931H49Bj5mivsbAmTS+1DyV56kUN59FevwmUqEzxYVhaC4S/fuGIrQUFY4W8ASU+WHzvOuNBCICeA==",
   VERDICT_WORKFLOW_ID: "verdict-day4-proof.yml",
   VERDICT_WORKFLOW_OWNER: "himanshu748",
   VERDICT_WORKFLOW_REF: "main",
@@ -48,6 +52,12 @@ describe("Verdict run configuration", () => {
       investigationTarget: {
         issueNumber: 417,
         repository: "truefoundry/trueforge",
+        sourceCommit: "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
+        sourcePackage: {
+          integrity:
+            "sha512-IQX4xHtjR931H49Bj5mivsbAmTS+1DyV56kUN59FevwmUqEzxYVhaC4S/fuGIrQUFY4W8ASU+WHzvOuNBCICeA==",
+          spec: "@truefoundry/trueforge-core@0.1.4",
+        },
       },
       workflowTarget: {
         approvalNonce: "0123456789abcdef0123456789abcdef",
@@ -77,6 +87,9 @@ describe("Verdict run configuration", () => {
   it.each([
     "VERDICT_ISSUE_REPOSITORY",
     "VERDICT_ISSUE_NUMBER",
+    "VERDICT_SOURCE_COMMIT",
+    "VERDICT_SOURCE_PACKAGE",
+    "VERDICT_SOURCE_PACKAGE_INTEGRITY",
     "VERDICT_WORKFLOW_OWNER",
     "VERDICT_WORKFLOW_REPO",
     "VERDICT_WORKFLOW_ID",
@@ -99,6 +112,24 @@ describe("Verdict run configuration", () => {
       ).toThrow("VERDICT_ISSUE_NUMBER must be a positive integer");
     },
   );
+
+  it("rejects an abbreviated or non-hex source commit", () => {
+    expect(() =>
+      candidateBuilder()?.({
+        ...validEnv,
+        VERDICT_SOURCE_COMMIT: "506bf5c",
+      }),
+    ).toThrow("full 40-character commit SHA");
+  });
+
+  it("rejects a floating source package version", () => {
+    expect(() =>
+      candidateBuilder()?.({
+        ...validEnv,
+        VERDICT_SOURCE_PACKAGE: "@truefoundry/trueforge-core@latest",
+      }),
+    ).toThrow("exact npm package version");
+  });
 });
 
 describe("Verdict operator decision", () => {
