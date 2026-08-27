@@ -109,7 +109,7 @@ export function buildVerdictAgentManifest(
       name: model,
       params: {
         enable_thinking: false,
-        maxTokens: 65_536,
+        maxTokens: 32_768,
         parallelToolCalls: false,
         reasoningEffort: "low",
         temperature: 0,

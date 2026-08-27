@@ -20,7 +20,7 @@ pnpm --filter @verdict/agent server
 ```
 
 ```sh
-pnpm --filter @verdict/agent setup
+pnpm --filter @verdict/agent run setup
 ```
 
 Start the bounded investigation after setup:
