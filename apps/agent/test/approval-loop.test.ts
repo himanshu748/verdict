@@ -98,24 +98,38 @@ describe("approval turn loop", () => {
     expect(result.confirmedWorkflowProofs).toHaveLength(1);
   });
 
-  it("fails closed before a second approved dispatch can be requested", async () => {
+  it("fails closed before a second dispatch and preserves the audit result", async () => {
     const first = projection("turn-1", "approval_required");
     const second = projection("turn-2", "approval_required");
+    const denied = {
+      ...projection("turn-3", "cancelled"),
+      assistantText: "First proof confirmed; repeated request denied.",
+    };
     const decide = vi.fn(async () => "approve" as const);
     const approve = vi.fn().mockResolvedValueOnce({
       approvalResult: second,
       proof: proof(201),
     });
-    const deny = vi.fn();
+    const deny = vi.fn().mockResolvedValue(denied);
 
-    await expect(
-      resolveApprovalTurns(first, { approve, decide, deny }),
-    ).rejects.toThrow("more than one approved workflow dispatch");
+    const result = await resolveApprovalTurns(first, {
+      approve,
+      decide,
+      deny,
+    });
     expect(decide).toHaveBeenCalledTimes(1);
     expect(approve).toHaveBeenCalledTimes(1);
     expect(deny).toHaveBeenCalledWith(
       second,
       "Verdict policy denied a repeated workflow dispatch after one confirmed proof.",
     );
+    expect(result.projection).toMatchObject({
+      assistantText: "First proof confirmed; repeated request denied.",
+      error:
+        "Verdict cannot request more than one approved workflow dispatch per investigation.",
+      status: "error",
+      turnId: "turn-3",
+    });
+    expect(result.confirmedWorkflowProofs).toEqual([proof(201)]);
   });
 });

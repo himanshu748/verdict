@@ -38,13 +38,17 @@ export async function resolveApprovalTurns(
     if (
       confirmedWorkflowProofs.length >= MAX_APPROVED_WORKFLOW_DISPATCHES
     ) {
-      await handlers.deny(
+      const deniedProjection = await handlers.deny(
         projection,
         "Verdict policy denied a repeated workflow dispatch after one confirmed proof.",
       );
-      throw new Error(
-        "Verdict cannot request more than one approved workflow dispatch per investigation.",
-      );
+      projection = {
+        ...deniedProjection,
+        error:
+          "Verdict cannot request more than one approved workflow dispatch per investigation.",
+        status: "error",
+      };
+      break;
     }
     if (!projection.turnId) {
       throw new Error("An approval decision requires the exact paused turn id.");

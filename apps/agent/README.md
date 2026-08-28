@@ -37,7 +37,7 @@ The CLI retries a transient provider connection failure at most twice after the 
 
 Insurance must produce a real TrueForge tool-approval event, not a prose imitation. The host accepts Hunter, Surgeon and Insurance by their observed dynamic-thread name or title and requires all three successful thread completions in order. A root fallback packet preserves evidence but cannot impersonate a missing thread. A completed run missing that structure becomes a terminal error and cannot request the proof workflow. If all three observed acts complete without an approval event and no workflow call was attempted, the CLI resumes the exact completed turn once with a host-owned request for the exact configured target. The corrective turn still cannot dispatch the workflow. It pauses for the same explicit maintainer decision, has a one-minute watchdog and fails closed if the model returns prose again.
 
-Verdict permits at most one successful approved workflow dispatch per investigation. A failed or malformed workflow attempt that reaches a completed turn without a TrueForge approval event is a terminal error, not a successful run and not a reason to issue a second call.
+Verdict permits at most one successful approved workflow dispatch per investigation. A failed or malformed workflow attempt that reaches a completed turn without a TrueForge approval event is a terminal error, not a successful run and not a reason to issue a second call. If the model requests another workflow after one confirmed proof, Verdict denies it, returns a terminal error projection and retains the first proof in the structured audit output.
 
 ## Policy boundary
 
