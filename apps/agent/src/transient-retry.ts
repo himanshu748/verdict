@@ -10,6 +10,7 @@ const TRANSIENT_PROVIDER_MARKERS = [
   "etimedout",
   "fetch failed",
   "network connection was lost",
+  "provider stalled before creating the required hunter subagent",
   "socket hang up",
   "und_err_connect_timeout",
 ] as const;

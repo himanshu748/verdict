@@ -21,6 +21,8 @@ export type VerdictTurnStatus =
   | "cancelled"
   | "error";
 
+export const VERDICT_HUNTER_START_TIMEOUT_MS = 120_000;
+
 export interface InvestigationTarget {
   issueNumber: number;
   repository: string;
@@ -853,7 +855,10 @@ async function streamVerdictTurn(
   previousTurnId: string,
   initial: VerdictEventProjection = createVerdictProjection(sessionId),
   onProjection?: ProjectionListener,
-  requestOptions?: Pick<BaseRequestOptions, "maxRetries">,
+  requestOptions?: Pick<
+    BaseRequestOptions,
+    "abortSignal" | "maxRetries" | "timeoutInSeconds"
+  >,
 ): Promise<VerdictEventProjection> {
   const stream = await client.sessions.createTurnStream(
     sessionId,
@@ -865,6 +870,21 @@ async function streamVerdictTurn(
   );
 
   return consumeTurnStream(stream, initial, onProjection);
+}
+
+async function cancelSessionAfterStreamFailure(
+  client: TrueForge,
+  sessionId: string,
+): Promise<void> {
+  try {
+    await client.sessions.cancel(
+      sessionId,
+      {},
+      { maxRetries: 0, timeoutInSeconds: 10 },
+    );
+  } catch {
+    // The turn may already be terminal or the local server may be unavailable.
+  }
 }
 
 export function buildInvestigationMessage(
@@ -910,24 +930,57 @@ export async function startVerdictInvestigation(
   workflowTarget: WorkflowDispatchTarget,
   onProjection?: ProjectionListener,
 ): Promise<VerdictEventProjection> {
-  const response = await client.sessions.create({
-    agent: { name: VERDICT_AGENT_NAME },
-  });
-  const projection = createVerdictProjection(response.data.id);
-
-  return streamVerdictTurn(
-    client,
-    response.data.id,
-    [
-      {
-        type: "user.message",
-        content: buildInvestigationMessage(target, workflowTarget),
-      },
-    ],
-    "auto",
-    projection,
-    onProjection,
+  const response = await client.sessions.create(
+    {
+      agent: { name: VERDICT_AGENT_NAME },
+    },
+    { maxRetries: 0, timeoutInSeconds: 30 },
   );
+  const projection = createVerdictProjection(response.data.id);
+  const abortController = new AbortController();
+  let observedHunter = false;
+  const hunterStartTimer = setTimeout(
+    () => abortController.abort(),
+    VERDICT_HUNTER_START_TIMEOUT_MS,
+  );
+
+  try {
+    return await streamVerdictTurn(
+      client,
+      response.data.id,
+      [
+        {
+          type: "user.message",
+          content: buildInvestigationMessage(target, workflowTarget),
+        },
+      ],
+      "auto",
+      projection,
+      async (nextProjection, event) => {
+        if (
+          event.type === "thread.created" &&
+          event.agentInfo.name === "Hunter" &&
+          !observedHunter
+        ) {
+          observedHunter = true;
+          clearTimeout(hunterStartTimer);
+        }
+        await onProjection?.(nextProjection, event);
+      },
+      { abortSignal: abortController.signal, maxRetries: 0 },
+    );
+  } catch (error) {
+    await cancelSessionAfterStreamFailure(client, response.data.id);
+    if (abortController.signal.aborted && !observedHunter) {
+      throw new Error(
+        "Provider stalled before creating the required Hunter subagent.",
+        { cause: error },
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(hunterStartTimer);
+  }
 }
 
 export async function approveVerdictWorkflow(

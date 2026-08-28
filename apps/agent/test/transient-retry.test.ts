@@ -27,6 +27,7 @@ describe("transient provider retry", () => {
     "read ECONNRESET",
     "TypeError: fetch failed",
     "UND_ERR_CONNECT_TIMEOUT",
+    "Provider stalled before creating the required Hunter subagent.",
   ])("recognizes retryable provider failure: %s", (message) => {
     expect(isTransientProviderFailure(message)).toBe(true);
   });

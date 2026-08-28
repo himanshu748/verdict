@@ -33,7 +33,7 @@ The command streams observed TrueForge subagent events. If the model proposes th
 
 The server command binds TrueForge to `127.0.0.1:8790`, gives long three-act investigations a one-hour server window and writes its standalone SQLite database inside `apps/agent`. Daytona runs commands with a separate three-minute cap, stops idle sandboxes after five minutes and deletes them after five days. TrueForge also creates local sandbox storage in the operating system's application-data directory. The SDK rejects non-loopback base URLs.
 
-The CLI retries a transient provider connection failure at most twice after the first pre-approval attempt, with bounded exponential backoff. This retry boundary covers only a fresh investigation start. It never replays an approval decision or a protected GitHub write.
+The CLI retries a transient provider connection failure at most twice after the first pre-approval attempt, with bounded exponential backoff. If the root model does not create its first required subagent within two minutes, Verdict aborts the stream, asks TrueForge to cancel that local session and treats the stall as transient. A transport error also triggers best-effort cancellation before retry. This retry boundary covers only a fresh investigation start. It never replays an approval decision or a protected GitHub write.
 
 ## Policy boundary
 
