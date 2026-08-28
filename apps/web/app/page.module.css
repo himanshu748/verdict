@@ -892,7 +892,7 @@
 
   .heroVisual {
     min-height: 610px;
-    grid-template-columns: minmax(180px, 0.28fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     border-top: 1px solid color-mix(in srgb, var(--line) 64%, transparent);
     border-left: 0;
   }
