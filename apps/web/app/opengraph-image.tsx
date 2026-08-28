@@ -1,63 +1,91 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { ImageResponse } from "next/og";
 
 export const alt = "Verdict: Bugs are innocent until reproduced.";
 export const size = { height: 630, width: 1200 };
 export const contentType = "image/png";
 
-export default function OpenGraphImage() {
+export default async function OpenGraphImage() {
+  const logo = await readFile(join(process.cwd(), "public", "verdict-logo.png"));
+  const logoSrc = `data:image/png;base64,${logo.toString("base64")}`;
+
   return new ImageResponse(
     (
       <div
         style={{
-          alignItems: "stretch",
+          alignItems: "center",
           background: "#0C0805",
           color: "#F6F1EB",
           display: "flex",
           fontFamily: "Arial, sans-serif",
+          gap: "56px",
           height: "100%",
           padding: "64px",
           width: "100%",
         }}
       >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          alt=""
+          height={420}
+          src={logoSrc}
+          style={{ borderRadius: "6px", flexShrink: 0 }}
+          width={420}
+        />
+
         <div
           style={{
-            border: "2px solid #51473E",
             display: "flex",
             flex: 1,
             flexDirection: "column",
-            justifyContent: "space-between",
-            padding: "52px",
+            gap: "26px",
+            justifyContent: "center",
           }}
         >
-          <div style={{ alignItems: "center", display: "flex", gap: "18px" }}>
-            <div
-              style={{
-                alignItems: "center",
-                border: "3px solid #F4A437",
-                color: "#F4A437",
-                display: "flex",
-                fontSize: "31px",
-                height: "52px",
-                justifyContent: "center",
-                width: "52px",
-              }}
-            >
-              V
-            </div>
-            <div style={{ fontSize: "34px", fontWeight: 700 }}>Verdict</div>
+          <div
+            style={{
+              color: "#F4A437",
+              fontSize: "21px",
+              letterSpacing: "0.12em",
+            }}
+          >
+            REPRODUCTION AGENT FOR FLAKY BUGS
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-            <div style={{ color: "#F4A437", fontSize: "22px", letterSpacing: "0.12em" }}>
-              EVIDENCE-FIRST BUG REPRODUCTION
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", fontSize: "72px", fontWeight: 700, letterSpacing: "-0.045em", lineHeight: 1 }}>
-              <span>Bugs are innocent</span>
-              <span>until reproduced.</span>
-            </div>
+
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              fontSize: "62px",
+              fontWeight: 700,
+              letterSpacing: "-0.045em",
+              lineHeight: 1.02,
+            }}
+          >
+            <span>Bugs are innocent</span>
+            <span>until reproduced.</span>
           </div>
-          <div style={{ color: "#B6AA9B", display: "flex", fontSize: "22px", justifyContent: "space-between" }}>
-            <span>Hunter / Surgeon / Insurance</span>
-            <span>Public writes require approval</span>
+
+          <div style={{ color: "#B6AA9B", fontSize: "24px", lineHeight: 1.4 }}>
+            Runs your test command until it finds the condition that breaks it.
+          </div>
+
+          <div
+            style={{
+              borderTop: "1px solid #51473E",
+              color: "#B6AA9B",
+              display: "flex",
+              fontSize: "19px",
+              gap: "22px",
+              paddingTop: "20px",
+            }}
+          >
+            <span>Find it</span>
+            <span style={{ color: "#51473E" }}>/</span>
+            <span>Narrow it</span>
+            <span style={{ color: "#51473E" }}>/</span>
+            <span>Keep it fixed</span>
           </div>
         </div>
       </div>
