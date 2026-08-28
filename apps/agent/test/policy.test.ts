@@ -111,7 +111,7 @@ describe("Verdict TrueForge manifest policy", () => {
     );
     expect(manifest.mcpServers?.[0]?.preload).toBe(false);
     expect(manifest.mcpServers?.[0]?.preloadTools).toEqual([]);
-    expect(manifest.config?.iterationLimit).toBe(32);
+    expect(manifest.config?.iterationLimit).toBe(64);
   });
 
   it("keeps the GitHub token only in connector headers", () => {

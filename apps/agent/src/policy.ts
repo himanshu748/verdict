@@ -14,6 +14,8 @@ export const GITHUB_TOOL_WHITELIST = [
 
 export const APPROVAL_REQUIRED_TOOLS = ["actions_run_trigger"] as const;
 export const GITHUB_MCP_TOOLS_HEADER = GITHUB_TOOL_WHITELIST.join(",");
+export const VERDICT_ITERATION_LIMIT = 64;
+export const VERDICT_MAX_OUTPUT_TOKENS = 32_768;
 
 export const VERDICT_AGENT_INSTRUCTIONS = `You are Verdict, an evidence-first intermittent bug investigator. Bugs are innocent until reproduced.
 
@@ -109,7 +111,7 @@ export function buildVerdictAgentManifest(
       name: model,
       params: {
         enable_thinking: false,
-        maxTokens: 32_768,
+        maxTokens: VERDICT_MAX_OUTPUT_TOKENS,
         parallelToolCalls: false,
         reasoningEffort: "low",
         temperature: 0,
@@ -118,7 +120,7 @@ export function buildVerdictAgentManifest(
     instructions: VERDICT_AGENT_INSTRUCTIONS,
     config: {
       dynamicSubAgents: { enabled: true },
-      iterationLimit: 32,
+      iterationLimit: VERDICT_ITERATION_LIMIT,
       sandbox: {
         enabled: true,
         fileDownloads: false,

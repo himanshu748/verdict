@@ -8,7 +8,9 @@ import {
 export const HUGGING_FACE_PROVIDER_NAME = "huggingface";
 export const HUGGING_FACE_BASE_URL = "https://router.huggingface.co/v1";
 export const HUGGING_FACE_MODEL_NAME = "qwen3.8-27b";
-export const HUGGING_FACE_MODEL_ID = "Qwen/Qwen3.8-27B:featherless-ai";
+export const HUGGING_FACE_INFERENCE_PROVIDER = "deepinfra";
+export const HUGGING_FACE_MODEL_ID =
+  `Qwen/Qwen3.8-27B:${HUGGING_FACE_INFERENCE_PROVIDER}`;
 export const HUGGING_FACE_MODEL_CONTEXT_LENGTH = 262_144;
 export const HUGGING_FACE_TRUEFORGE_MODEL =
   `${HUGGING_FACE_PROVIDER_NAME}/${HUGGING_FACE_MODEL_NAME}`;
