@@ -5,14 +5,12 @@ import { useEffect } from "react";
 /**
  * Reveals `[data-reveal]` blocks as they enter the viewport.
  *
- * Three things keep this from ever hiding content permanently:
- * the hidden state is applied here rather than in the stylesheet, so no
- * JavaScript means no hiding; anything already on screen at mount is revealed
- * without waiting for the observer; and a timer reveals whatever is left, which
- * covers renderers that never scroll, such as print and page capture.
+ * Content is never hidden in a way that can strand it. The hidden state is
+ * applied here rather than in the stylesheet, so no JavaScript means no
+ * hiding; anything already on screen at mount is never hidden; printing
+ * reveals whatever is still pending; and the stylesheet drops the effect
+ * entirely under prefers-reduced-motion.
  */
-const SAFETY_MS = 2500;
-
 export function Reveal() {
   useEffect(() => {
     const targets = Array.from(
@@ -22,19 +20,20 @@ export function Reveal() {
 
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-    const reveal = (element: HTMLElement) => {
-      element.dataset.revealed = "true";
-    };
-
-    const pending: HTMLElement[] = [];
+    const pending = new Set<HTMLElement>();
     for (const target of targets) {
       if (target.getBoundingClientRect().top < window.innerHeight * 0.95) {
         continue;
       }
       target.dataset.revealReady = "true";
-      pending.push(target);
+      pending.add(target);
     }
-    if (pending.length === 0) return;
+    if (pending.size === 0) return;
+
+    const reveal = (element: HTMLElement) => {
+      element.dataset.revealed = "true";
+      pending.delete(element);
+    };
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -48,13 +47,14 @@ export function Reveal() {
     );
     for (const target of pending) observer.observe(target);
 
-    const safety = window.setTimeout(() => {
-      for (const target of pending) reveal(target);
-      observer.disconnect();
-    }, SAFETY_MS);
+    // Printing never scrolls, so anything still pending would print blank.
+    const revealForPrint = () => {
+      for (const target of Array.from(pending)) reveal(target);
+    };
+    window.addEventListener("beforeprint", revealForPrint);
 
     return () => {
-      window.clearTimeout(safety);
+      window.removeEventListener("beforeprint", revealForPrint);
       observer.disconnect();
     };
   }, []);

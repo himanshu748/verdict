@@ -62,17 +62,17 @@ const investigationActs = [
   },
   {
     className: styles.actInsurance,
-    copy: "Writes a regression test that fails on the condition you found, and prepares the pull request without opening it until you say so.",
+    copy: "Turns the confirmed evidence into a regression-proof plan: the test name, the fixture and the assertion that should fail. It does not write the test, and a draft pull request is only ever opened by a workflow you approved.",
     icon: ShieldCheck,
     mandate: "Stop it coming back",
-    output: "A regression test, held for your approval",
+    output: "A regression plan, held for your approval",
     title: "Insurance",
   },
 ];
 
 const workspaceStats = [
-  ["12", "conditions in the approved search space"],
-  ["10", "records generated per condition"],
+  ["8", "conditions per run, at most"],
+  ["3", "repetitions per condition, at most"],
   ["4", "read-only GitHub tools the agent may call"],
   ["1", "approval gate before any public write"],
 ];
@@ -181,7 +181,7 @@ export default function HomePage() {
             </p>
             <p className={styles.heroLede}>
               You get back the exact command, how often it failed, the commit
-              range it points at and a regression test to stop it returning.
+              range it points at and a regression plan to stop it returning.
               Nothing is written to your repository without your approval.
             </p>
             <div className={styles.heroActions}>
@@ -219,12 +219,14 @@ export default function HomePage() {
 
         <section className={styles.productSection} id="workspace">
           <div className={styles.sectionHeading} data-reveal>
-            <h2>Twelve conditions. One that reproduces.</h2>
+            <h2>A grid of conditions. The one that reproduces.</h2>
             <p>
-              Each cell is one setting of the knobs you approved, run ten times.
-              The count in the corner is how many of those ten reproduced the
-              bug. Select a cell and you see the command that produced it, the
-              exit code and the commit it ran against.
+              Each cell is one setting of the knobs you approved, run several
+              times. The count in the corner is how many of those runs
+              reproduced the bug. Select a cell and you see the command that
+              produced it, the exit code and the commit it ran against. The
+              board below is the bundled fixture, and its numbers are generated
+              rather than executed.
             </p>
           </div>
 
