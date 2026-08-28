@@ -1,213 +1,401 @@
-import { ArrowRight, ArrowUpRight, GithubLogo, LockKey, ShieldCheck } from "@phosphor-icons/react/dist/ssr";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  CheckSquare,
+  ClipboardText,
+  Crosshair,
+  Article,
+  FileMagnifyingGlass,
+  GitCommit,
+  Graph,
+  GithubLogo,
+  ListChecks,
+  LockKey,
+  ShieldCheck,
+  Timer,
+} from "@phosphor-icons/react/dist/ssr";
+import Image from "next/image";
 import { ExposurePreview } from "@/components/exposure-preview";
 import { ThemeToggle } from "@/components/theme-toggle";
+import styles from "./page.module.css";
 
-const investigationStages = [
+const proofChain = [
   {
-    mandate: "Find the trigger",
-    title: "Hunter",
-    copy: "Build a bounded matrix from approved knobs, run each condition and keep every valid, partial and unresolved record.",
-    output: "Reproducer or honest partial",
+    icon: GithubLogo,
+    label: "Issue",
+    value: "One uncertain report",
   },
   {
-    mandate: "Localize the change",
-    title: "Surgeon",
-    copy: "Start from a static suspect range, then replay the reproducer across buildable history when live execution is available.",
-    output: "Suspect range or runtime boundary",
-  },
-  {
-    mandate: "Keep it fixed",
-    title: "Insurance",
-    copy: "Turn the reproducer into a regression plan and prepare an exact publication manifest for maintainer approval.",
-    output: "Regression plan and gated handoff",
-  },
-];
-
-const proofLayers = [
-  {
-    label: "Input",
-    title: "GitHub issue",
-    copy: "Treat the report and repository as untrusted sources until the evidence agrees.",
-  },
-  {
+    icon: Crosshair,
     label: "Experiment",
-    title: "Condition matrix",
-    copy: "Search only the knobs, commands and run budget approved for the case.",
+    value: "A bounded condition matrix",
   },
   {
+    icon: ClipboardText,
     label: "Evidence",
-    title: "Run records",
-    copy: "Keep the command, environment, outcome and unresolved runs in one record.",
+    value: "Commands, environments and records",
   },
   {
+    icon: ShieldCheck,
     label: "Decision",
-    title: "Reviewable verdict",
-    copy: "Promote only the claims supported by the records, then hand control back to you.",
+    value: "A reviewable verdict",
   },
 ];
 
-function BrandMark() {
-  return (
-    <svg aria-hidden="true" className="brand-mark" viewBox="0 0 28 28">
-      <rect height="22" width="22" x="3" y="3" />
-      <path d="M8 14.5 12 19l8-10" />
-    </svg>
-  );
-}
+const investigationActs = [
+  {
+    className: styles.actHunter,
+    copy: "Search the approved condition space, preserve unresolved runs and stop at the smallest supported claim.",
+    icon: Crosshair,
+    mandate: "Find the trigger",
+    output: "Reproducer or honest partial",
+    title: "Hunter",
+  },
+  {
+    className: styles.actSurgeon,
+    copy: "Inspect the static suspect range, then replay the reproducer across buildable history when execution is available.",
+    icon: GitCommit,
+    mandate: "Localize the change",
+    output: "Suspect range or runtime boundary",
+    title: "Surgeon",
+  },
+  {
+    className: styles.actInsurance,
+    copy: "Turn the evidence into a regression plan and prepare a publication manifest for maintainer review.",
+    icon: ShieldCheck,
+    mandate: "Keep it fixed",
+    output: "Regression plan and gated handoff",
+    title: "Insurance",
+  },
+];
+
+const workspaceStats = [
+  ["12", "conditions in the approved search space"],
+  ["10", "records generated per condition"],
+  ["4", "read-only GitHub tools the agent may call"],
+  ["1", "approval gate before any public write"],
+];
+
+const capabilities = [
+  {
+    icon: ListChecks,
+    title: "A bounded search space",
+    copy: "You define the knobs and the budget. The agent cannot widen its own experiment, so a run that finds nothing costs what you agreed to spend.",
+  },
+  {
+    icon: Article,
+    title: "Records, not summaries",
+    copy: "Every accepted observation carries its command, environment, exit code and commit. The conclusion is derived from those records rather than asserted alongside them.",
+  },
+  {
+    icon: Timer,
+    title: "Honest partial results",
+    copy: "Partial and unresolved conditions stay on the board. A search that half worked reports as a search that half worked.",
+  },
+  {
+    icon: Graph,
+    title: "Deterministic reducers",
+    copy: "The same records always produce the same verdict. The reducers live in a shared package and are covered by the test suite.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "An approval boundary",
+    copy: "The trusted host validates the exact repository, workflow and ref before a dispatch is offered. The default is to stay read-only.",
+  },
+  {
+    icon: FileMagnifyingGlass,
+    title: "Portable evidence",
+    copy: "Each case exports a readable report and a machine-readable bundle, so the trail survives outside the interface.",
+  },
+];
+
+const faq = [
+  [
+    "Is this an autofix bot?",
+    "No. Verdict stops at a reviewable claim. It proposes a regression test and a publication manifest, and a maintainer decides whether anything is written.",
+  ],
+  [
+    "What if the bug will not reproduce?",
+    "That is a result, and it is reported as one. The matrix keeps not-reproduced, partial and unresolved conditions visible instead of collapsing them into a single confident answer.",
+  ],
+  [
+    "Why does the demo say conceptual fixture?",
+    "Because the hosted case has not been executed against a live sandbox. Labelling generated data as generated is the same discipline the product applies to its own findings.",
+  ],
+  [
+    "What does it need from my repository?",
+    "A GitHub issue, a maintainer-approved command, the condition knobs worth trying and a run budget. Repository access stays on four read tools until you approve a dispatch.",
+  ],
+];
 
 export default function HomePage() {
   return (
-    <>
+    <div className={styles.page}>
       <a className="skip-link" href="#main-content">Skip to content</a>
-      <header className="site-header">
-        <nav aria-label="Primary" className="site-nav">
-          <a className="brand" href="#top" aria-label="Verdict home">
-            <BrandMark />
+
+      <header className={styles.header}>
+        <nav aria-label="Primary" className={styles.nav}>
+          <a className={styles.brand} href="#top" aria-label="Verdict home">
+            <CheckSquare aria-hidden="true" size={25} weight="regular" />
             <span>Verdict</span>
           </a>
-          <div className="nav-links">
-            <a href="#contract">Contract</a>
+
+          <div className={styles.navLinks}>
+            <a href="#product">Product</a>
             <a href="#method">Method</a>
-            <a href="#evidence">Evidence</a>
+            <a href="#safety">Safety</a>
           </div>
-          <div className="site-actions">
+
+          <div className={styles.navActions}>
             <ThemeToggle />
             <a
-              className="github-link"
+              className={styles.sourceLink}
               href="https://github.com/himanshu748/verdict"
               rel="noreferrer"
               target="_blank"
             >
               <GithubLogo aria-hidden="true" size={18} weight="regular" />
-              <span>GitHub</span>
+              <span>Source</span>
             </a>
           </div>
         </nav>
       </header>
 
       <main id="main-content">
-        <section className="hero" id="top">
-          <div className="hero-copy">
+        <section className={styles.hero} id="top">
+          <div className={styles.heroCopy}>
+            <p className={styles.eyebrow}>Evidence-first agent for flaky bugs</p>
             <h1>
-              <span>Bugs are innocent </span>
-              <span>until reproduced.</span>
+              <span>Prove the bug</span>
+              <span>before you fix it.</span>
             </h1>
-            <p>Give Verdict a flaky GitHub issue. Get reproducible conditions, a commit-level suspect range and a regression plan you can review.</p>
-            <div className="hero-actions">
-              <a className="button button-primary" href="/case/demo">Inspect issue #417</a>
-              <a className="button button-secondary" href="#evidence">See proof chain</a>
+            <p className={styles.heroLede}>
+              Verdict turns one GitHub issue into reproducible conditions, a suspect range and a regression plan you can audit.
+            </p>
+            <div className={styles.heroActions}>
+              <a className={`${styles.button} ${styles.buttonPrimary}`} href="/case/demo">
+                Open case #417
+                <ArrowRight aria-hidden="true" size={18} weight="bold" />
+              </a>
+              <a className={`${styles.button} ${styles.buttonSecondary}`} href="#method">
+                See the method
+              </a>
             </div>
-            <dl className="hero-facts" aria-label="Verdict product facts">
-              <div><dt>Input</dt><dd>GitHub issue</dd></div>
-              <div><dt>Output</dt><dd>Evidence packet</dd></div>
-              <div><dt>Default</dt><dd>Read-only</dd></div>
-            </dl>
           </div>
-          <div className="hero-product" id="product">
-            <ExposurePreview />
+
+          <div className={styles.heroVisual}>
+            <div className={styles.matrixPanel}>
+              <ExposurePreview />
+            </div>
           </div>
         </section>
 
-        <section className="runtime-section" id="contract">
-          <div className="runtime-copy">
-            <h2>Every conclusion leaves a paper trail.</h2>
-            <p>Verdict separates exploration from proof. See what was tried, what happened and what remains unknown.</p>
-            <p className="runtime-note">
-              <strong>Live demo contract</strong>
-              The hosted issue workspace labels generated fixture data clearly. It never presents a simulated result as a real run.
+        <section aria-label="Verdict proof chain" className={styles.proofRail}>
+          {proofChain.map(({ icon: Icon, label, value }, index) => (
+            <div className={styles.proofItem} key={label}>
+              <Icon aria-hidden="true" size={19} weight="regular" />
+              <div>
+                <span>{label}</span>
+                <strong>{value}</strong>
+              </div>
+              {index < proofChain.length - 1 ? (
+                <ArrowRight aria-hidden="true" className={styles.proofArrow} size={17} />
+              ) : null}
+            </div>
+          ))}
+        </section>
+
+        <section className={styles.productSection} id="workspace">
+          <div className={styles.sectionHeading}>
+            <h2>The investigation is the interface.</h2>
+            <p>
+              Every condition, record and command stays on one board. Select a condition to see the evidence behind its state.
             </p>
           </div>
-          <ol className="runtime-flow" aria-label="Verdict evidence contract">
-            {proofLayers.map((layer, index) => (
-              <li key={layer.title}>
-                <div>
-                  <span>{layer.label}</span>
-                  <strong>{layer.title}</strong>
-                </div>
-                <p>{layer.copy}</p>
-                {index < proofLayers.length - 1 ? (
-                  <ArrowRight aria-hidden="true" size={20} weight="regular" />
-                ) : (
-                  <ShieldCheck aria-hidden="true" size={20} weight="regular" />
-                )}
-              </li>
-            ))}
-          </ol>
-        </section>
 
-        <section className="evidence-section" id="evidence">
-          <div className="evidence-intro">
-            <h2>A bug report is not evidence.</h2>
-            <p>Verdict records the command, environment and every valid run before it promotes a condition from possible to reproduced.</p>
-          </div>
-          <div className="evidence-paper" aria-label="Example verdict record">
-            <div className="paper-heading">
-              <span>Verdict record</span>
-              <span>Simulated fixture</span>
+          <figure className={styles.productFrame}>
+            <div className={styles.frameBar}>
+              <span className={styles.frameDots} aria-hidden="true" />
+              <span className={styles.frameUrl}>verdict / case / TF-417</span>
+              <a className={styles.frameLink} href="/case/demo">
+                Open it
+                <ArrowUpRight aria-hidden="true" size={14} />
+              </a>
             </div>
-            <dl>
-              <div><dt>Outcome</dt><dd>SIMULATED_REPRODUCTION_PINNED</dd></div>
-              <div><dt>Observed</dt><dd>10 / 10 generated records</dd></div>
-              <div><dt>Condition</dt><dd><code>750 ms budget / no response</code></dd></div>
-              <div><dt>Evidence</dt><dd>Schema-valid conceptual fixture</dd></div>
-            </dl>
-          </div>
-        </section>
+            <Image
+              alt="The Verdict case workspace showing a twelve condition matrix and the evidence record for the pinned condition."
+              className={`${styles.productShot} ${styles.productShotDark}`}
+              height={900}
+              sizes="(max-width: 1023px) 100vw, 1100px"
+              src="/workspace-dark.jpg"
+              width={1440}
+            />
+            <Image
+              alt=""
+              className={`${styles.productShot} ${styles.productShotLight}`}
+              height={900}
+              sizes="(max-width: 1023px) 100vw, 1100px"
+              src="/workspace-light.jpg"
+              width={1440}
+            />
+          </figure>
 
-        <section className="method-section" id="method">
-          <div className="method-heading">
-            <h2>One issue. Three agents. No leap of faith.</h2>
-            <p>Each act earns a narrower claim. The maintainer controls the only public write.</p>
-          </div>
-          <ol className="method-list">
-            {investigationStages.map((stage) => (
-              <li key={stage.title}>
-                <div className="method-title">
-                  <span>{stage.mandate}</span>
-                  <h3>{stage.title}</h3>
-                </div>
-                <div>
-                  <p>{stage.copy}</p>
-                  <span className="method-output">Output: {stage.output}</span>
-                </div>
-                <ArrowUpRight aria-hidden="true" size={20} weight="regular" />
-              </li>
+          <dl className={styles.statRow}>
+            {workspaceStats.map(([figure, note]) => (
+              <div key={note}>
+                <dt>{figure}</dt>
+                <dd>{note}</dd>
+              </div>
             ))}
-          </ol>
+          </dl>
         </section>
 
-        <section className="approval-section">
-          <div className="approval-copy">
-            <ShieldCheck aria-hidden="true" size={32} weight="regular" />
-            <h2>No patch crosses the trust boundary unseen.</h2>
-            <p>Verdict stays read-only until you review the repository, workflow, ref and exact files. Denial preserves every finding.</p>
+        <section className={styles.dossierSection} id="evidence">
+          <div className={styles.dossierCopy}>
+            <FileMagnifyingGlass aria-hidden="true" size={34} weight="regular" />
+            <h2>A bug report is only a lead.</h2>
+            <p>
+              Verdict keeps the proposed command, environment and generated records together. Missing evidence stays visible instead of becoming confidence.
+            </p>
+            <a href="/case/demo">
+              Inspect the full evidence trail
+              <ArrowUpRight aria-hidden="true" size={18} />
+            </a>
           </div>
-          <div className="approval-manifest" aria-label="Publication manifest preview">
-            <div className="manifest-title">
-              <LockKey aria-hidden="true" size={18} weight="regular" />
-              Review the public write
+
+          <article className={styles.dossier} aria-label="Conceptual Verdict record">
+            <header>
+              <div>
+                <span>Verdict record</span>
+                <strong>TrueForge issue #417</strong>
+              </div>
+              <span className={styles.fixtureLabel}>Conceptual fixture, not run</span>
+            </header>
+            <dl>
+              <div>
+                <dt>Outcome</dt>
+                <dd>SIMULATED_REPRODUCTION_PINNED</dd>
+              </div>
+              <div>
+                <dt>Observed</dt>
+                <dd>10 of 10 generated records</dd>
+              </div>
+              <div>
+                <dt>Condition</dt>
+                <dd><code>750 ms budget / no response</code></dd>
+              </div>
+              <div>
+                <dt>Runtime proof</dt>
+                <dd>Not established</dd>
+              </div>
+            </dl>
+            <footer>
+              <span>Schema-valid conceptual data</span>
+              <span>Public write disabled</span>
+            </footer>
+          </article>
+        </section>
+
+        <section className={styles.methodSection} id="method">
+          <div className={styles.sectionHeading}>
+            <h2>Three acts. One narrowing claim.</h2>
+            <p>Each act earns the right to say less, but say it with evidence.</p>
+          </div>
+          <div className={styles.actGrid}>
+            {investigationActs.map(({ className, copy, icon: Icon, mandate, output, title }) => (
+              <article className={`${styles.act} ${className}`} key={title}>
+                <div className={styles.actTopline}>
+                  <Icon aria-hidden="true" size={23} weight="regular" />
+                  <span>{mandate}</span>
+                </div>
+                <h3>{title}</h3>
+                <p>{copy}</p>
+                <span className={styles.actOutput}>{output}</span>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className={styles.capabilitySection} id="product">
+          <div className={styles.sectionHeading}>
+            <h2>What you get from a run.</h2>
+            <p>Six guarantees the product holds whether or not the bug reproduces.</p>
+          </div>
+          <div className={styles.capabilityGrid}>
+            {capabilities.map(({ copy, icon: Icon, title }) => (
+              <article className={styles.capability} key={title}>
+                <Icon aria-hidden="true" size={24} weight="regular" />
+                <h3>{title}</h3>
+                <p>{copy}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className={styles.safetySection} id="safety">
+          <div className={styles.safetyCopy}>
+            <LockKey aria-hidden="true" size={34} weight="regular" />
+            <h2>The agent stops before the public write.</h2>
+            <p>
+              The trusted host policy verifies the repository, workflow and ref. The maintainer reviews the proposed files before anything public happens.
+            </p>
+          </div>
+
+          <div className={styles.approvalPanel} aria-label="Approval boundary preview">
+            <div className={styles.approvalHeading}>
+              <ShieldCheck aria-hidden="true" size={20} weight="regular" />
+              <div>
+                <span>Approval boundary</span>
+                <strong>Exact workflow dispatch</strong>
+              </div>
             </div>
             <dl>
               <div><dt>Repository</dt><dd>truefoundry/trueforge</dd></div>
-              <div><dt>Proposed action</dt><dd>Exact workflow dispatch, disabled in demo</dd></div>
-              <div><dt>Files</dt><dd>Proposed test, VERDICT.md, verdict.json</dd></div>
+              <div><dt>Workflow</dt><dd>Trusted host policy target</dd></div>
+              <div><dt>Proposed files</dt><dd>Regression test, VERDICT.md, verdict.json</dd></div>
               <div><dt>Default</dt><dd>Stay read-only</dd></div>
             </dl>
+            <span className={styles.disabledAction}>Publication disabled in demo</span>
           </div>
         </section>
 
-        <section className="closing-section">
-          <h2>Bring us the bug that only happens sometimes.</h2>
-          <a className="button button-primary" href="/case/demo">
-            Inspect issue #417
+        <section className={styles.faqSection}>
+          <div className={styles.sectionHeading}>
+            <h2>Straight answers.</h2>
+          </div>
+          <div className={styles.faqGrid}>
+            {faq.map(([question, answer]) => (
+              <div className={styles.faqItem} key={question}>
+                <h3>{question}</h3>
+                <p>{answer}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className={styles.closingSection}>
+          <div>
+            <span>One flaky issue is enough.</span>
+            <h2>Bring the bug that only happens sometimes.</h2>
+          </div>
+          <a className={`${styles.button} ${styles.buttonPrimary}`} href="/case/demo">
+            Open case #417
+            <ArrowRight aria-hidden="true" size={18} weight="bold" />
           </a>
         </section>
       </main>
 
-      <footer className="site-footer">
-        <span>Verdict</span>
+      <footer className={styles.footer}>
+        <a className={styles.brand} href="#top" aria-label="Verdict home">
+          <CheckSquare aria-hidden="true" size={22} weight="regular" />
+          <span>Verdict</span>
+        </a>
         <span>Evidence first. Human approved.</span>
+        <a href="https://github.com/himanshu748/verdict" rel="noreferrer" target="_blank">
+          GitHub
+          <ArrowUpRight aria-hidden="true" size={15} />
+        </a>
       </footer>
-    </>
+    </div>
   );
 }

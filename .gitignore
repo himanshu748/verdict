@@ -14,3 +14,4 @@ playwright-report/
 *.log
 *.tsbuildinfo
 .vercel
+output/

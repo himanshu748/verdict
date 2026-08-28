@@ -1070,6 +1070,10 @@ button {
   color: var(--signal);
 }
 
+.mobile-fixture-status {
+  display: none;
+}
+
 .case-layout {
   display: grid;
   min-height: calc(100dvh - 64px);
@@ -1218,6 +1222,7 @@ button {
 .case-titlebar > div:first-child > span,
 .phase-heading > div > span,
 .contract-command > span,
+.record-command > span,
 .output-excerpt > span,
 .case-matrix-heading,
 .inspector-heading span,
@@ -1424,6 +1429,12 @@ button {
   content: "";
 }
 
+/* The contact-sheet texture is a darkroom artefact. Over the light canvas the
+   58% scrim leaves it reading as grey, so light mode covers nearly all of it. */
+html:not(.dark) .case-cell::before {
+  background: color-mix(in srgb, var(--canvas) 94%, transparent);
+}
+
 .case-cell:nth-child(4n) {
   border-right: 0;
 }
@@ -1568,6 +1579,66 @@ button {
   grid-template-columns: 90px minmax(0, 1fr);
   gap: 12px;
   border-top: 1px solid var(--line);
+}
+
+.record-command {
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.record-command code {
+  display: block;
+  max-height: 88px;
+  margin-top: 8px;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  background: var(--canvas);
+  color: var(--text);
+  font-family: var(--font-data);
+  font-size: 0.66rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.record-environment {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.record-environment summary {
+  min-height: 32px;
+  color: var(--signal);
+  cursor: pointer;
+  font-family: var(--font-data);
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.record-environment dl {
+  margin: 8px 0 0;
+}
+
+.record-environment dl > div {
+  display: grid;
+  padding: 7px 0;
+  grid-template-columns: minmax(110px, 0.8fr) minmax(0, 1.2fr);
+  gap: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.record-environment dt,
+.record-environment dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--font-data);
+  font-size: 0.62rem;
+  line-height: 1.45;
+}
+
+.record-environment dt {
+  color: var(--muted-text);
 }
 
 .output-excerpt {
@@ -2027,6 +2098,15 @@ button {
 
   .case-titlebar h1 {
     font-size: clamp(1.7rem, 8vw, 2.35rem);
+  }
+
+  .mobile-fixture-status {
+    display: block;
+    width: max-content;
+    margin-bottom: 14px;
+    padding: 5px 8px;
+    border: 1px solid color-mix(in srgb, var(--signal) 70%, var(--line));
+    color: var(--signal);
   }
 
   .case-title-meta {

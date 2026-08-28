@@ -175,6 +175,7 @@ export function CaseWorkspace({ data }: { data: DemoCase }) {
         <main className="case-main" id="case-main">
           <header className="case-titlebar">
             <div>
+              <span className="mobile-fixture-status">Simulated fixture, not run</span>
               <span>TRUEFOUNDRY / TRUEFORGE / ISSUE 417</span>
               <h1>{data.source.title}</h1>
             </div>
@@ -271,11 +272,24 @@ export function CaseWorkspace({ data }: { data: DemoCase }) {
                   </div>
                   <dl className="run-record">
                     <div><dt>Outcome</dt><dd>{outcomeLabel(selectedRecord.outcome)}</dd></div>
+                    <div><dt>Signature match</dt><dd>{selectedRecord.signatureMatched ? "Yes, generated" : "No"}</dd></div>
                     <div><dt>Generated duration</dt><dd>{selectedRecord.durationMs} ms</dd></div>
                     <div><dt>Exit code</dt><dd>{selectedRecord.exitCode ?? "none"}</dd></div>
                     <div><dt>Commit</dt><dd>{shortSha(selectedRecord.commitSha)}</dd></div>
                     <div><dt>Run ID</dt><dd>{selectedRecord.runId}</dd></div>
                   </dl>
+                  <div className="record-command">
+                    <span>Proposed command / not run</span>
+                    <code>{selectedRecord.command}</code>
+                  </div>
+                  <details className="record-environment">
+                    <summary>Inspect generated environment</summary>
+                    <dl>
+                      {Object.entries(selectedRecord.environment).map(([key, value]) => (
+                        <div key={key}><dt>{key}</dt><dd>{value}</dd></div>
+                      ))}
+                    </dl>
+                  </details>
                   <div className="output-excerpt">
                     <span>Generated output excerpt</span>
                     <code>{selectedRecord.outputExcerpt}</code>
