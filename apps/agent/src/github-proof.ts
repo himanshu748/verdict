@@ -169,6 +169,14 @@ function gitBlobUrl(target: WorkflowDispatchTarget, blobSha: string): string {
   return `${repositoryApiRoot(target)}/git/blobs/${encodePathSegment(blobSha, "blob SHA")}`;
 }
 
+async function releaseResponseBody(response: Response): Promise<void> {
+  try {
+    await response.body?.cancel();
+  } catch {
+    // Cleanup is best-effort. Preserve the original retry or HTTP result.
+  }
+}
+
 async function requestGitHubJson(
   url: string,
   token: string,
@@ -183,6 +191,7 @@ async function requestGitHubJson(
   });
 
   if (!response.ok) {
+    await releaseResponseBody(response);
     throw new Error(`GitHub API request failed with HTTP ${response.status}.`);
   }
 
@@ -230,21 +239,31 @@ function createRetryingGitHubReadFetch(
     }
 
     for (let attempt = 1; attempt <= maxReadAttempts; attempt += 1) {
+      let response: Response;
       try {
-        const response = await fetchImpl(input, init);
-        const retryableStatus =
-          response.status === 408 ||
-          response.status === 429 ||
-          response.status >= 500;
-        if (!retryableStatus || attempt === maxReadAttempts) {
-          return response;
-        }
+        response = await fetchImpl(input, init);
       } catch (error) {
         if (attempt === maxReadAttempts) {
           throw error;
         }
+        await sleep(
+          Math.min(
+            readRetryDelayMs * 2 ** (attempt - 1),
+            MAX_READ_RETRY_DELAY_MS,
+          ),
+        );
+        continue;
       }
 
+      const retryableStatus =
+        response.status === 408 ||
+        response.status === 429 ||
+        response.status >= 500;
+      if (!retryableStatus || attempt === maxReadAttempts) {
+        return response;
+      }
+
+      await releaseResponseBody(response);
       await sleep(
         Math.min(
           readRetryDelayMs * 2 ** (attempt - 1),

@@ -264,7 +264,9 @@ describe("GitHub workflow proof verification", () => {
   });
 
   it("retries a transient GitHub response status", async () => {
-    const responses = [jsonResponse({}, 503), ...successfulProofResponses()];
+    const retryableResponse = jsonResponse({}, 503);
+    const cancelBody = vi.spyOn(retryableResponse.body!, "cancel");
+    const responses = [retryableResponse, ...successfulProofResponses()];
     const fetchImpl = vi.fn(async () => responses.shift()!);
     const sleep = vi.fn(async () => undefined);
 
@@ -285,7 +287,54 @@ describe("GitHub workflow proof verification", () => {
 
     expect(proof.workflowRun.id).toBe(202);
     expect(fetchImpl).toHaveBeenCalledTimes(6);
+    expect(cancelBody).toHaveBeenCalledOnce();
     expect(sleep).toHaveBeenCalledExactlyOnceWith(10);
+  });
+
+  it("continues retrying when intermediate response cleanup fails", async () => {
+    const retryableResponse = jsonResponse({}, 503);
+    const cancelBody = vi
+      .spyOn(retryableResponse.body!, "cancel")
+      .mockRejectedValueOnce(new Error("cancel failed"));
+    const responses = [retryableResponse, ...successfulProofResponses()];
+    const fetchImpl = vi.fn(async () => responses.shift()!);
+    const sleep = vi.fn(async () => undefined);
+
+    const proof = await confirmWorkflowProof(
+      token,
+      target,
+      baseline,
+      sourceIssue,
+      {
+        fetchImpl,
+        maxPolls: 1,
+        maxReadAttempts: 2,
+        pollIntervalMs: 1,
+        readRetryDelayMs: 10,
+        sleep,
+      },
+    );
+
+    expect(proof.workflowRun.id).toBe(202);
+    expect(cancelBody).toHaveBeenCalledOnce();
+    expect(sleep).toHaveBeenCalledExactlyOnceWith(10);
+  });
+
+  it("releases the final retryable response during normal HTTP handling", async () => {
+    const finalResponse = jsonResponse({}, 503);
+    const cancelBody = vi.spyOn(finalResponse.body!, "cancel");
+    const fetchImpl = vi.fn(async () => finalResponse);
+
+    await expect(
+      confirmWorkflowProof(token, target, baseline, sourceIssue, {
+        fetchImpl,
+        maxPolls: 1,
+        maxReadAttempts: 1,
+        pollIntervalMs: 1,
+      }),
+    ).rejects.toThrow("GitHub API request failed with HTTP 503");
+    expect(fetchImpl).toHaveBeenCalledOnce();
+    expect(cancelBody).toHaveBeenCalledOnce();
   });
 
   it("does not retry a non-transient GitHub response", async () => {
