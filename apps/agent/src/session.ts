@@ -22,6 +22,13 @@ export type VerdictTurnStatus =
   | "error";
 
 export const VERDICT_HUNTER_START_TIMEOUT_MS = 120_000;
+export const VERDICT_WORKFLOW_REQUEST_TIMEOUT_MS = 60_000;
+
+export type MissingWorkflowApprovalState =
+  | "not_applicable"
+  | "investigation_incomplete"
+  | "request_required"
+  | "attempt_failed";
 
 export interface InvestigationTarget {
   issueNumber: number;
@@ -980,6 +987,157 @@ export async function startVerdictInvestigation(
     throw error;
   } finally {
     clearTimeout(hunterStartTimer);
+  }
+}
+
+function completedActsAreOrdered(
+  projection: VerdictEventProjection,
+): boolean {
+  let priorIndex = -1;
+  return ["Hunter", "Surgeon", "Insurance"].every((name) => {
+    const expectedIdentity = name.toLowerCase();
+    const nextIndex = projection.threads.findIndex(
+      (thread, index) =>
+        index > priorIndex &&
+        thread.status === "done" &&
+        [thread.name, thread.title].some(
+          (identity) => identity.trim().toLowerCase() === expectedIdentity,
+        ),
+    );
+    priorIndex = nextIndex;
+    return nextIndex !== -1;
+  });
+}
+
+export function classifyMissingWorkflowApproval(
+  projection: VerdictEventProjection,
+): MissingWorkflowApprovalState {
+  const workflowAlreadyAttempted = projection.modelToolCalls.some(
+    isWorkflowToolCallCandidate,
+  );
+
+  const completedWithoutApproval =
+    projection.status === "done" &&
+    projection.pendingApprovals.length === 0;
+  if (!completedWithoutApproval) {
+    return "not_applicable";
+  }
+  if (!completedActsAreOrdered(projection)) {
+    return "investigation_incomplete";
+  }
+  if (workflowAlreadyAttempted) {
+    return "attempt_failed";
+  }
+  return "request_required";
+}
+
+export function shouldRequestMissingWorkflowApproval(
+  projection: VerdictEventProjection,
+): boolean {
+  return classifyMissingWorkflowApproval(projection) === "request_required";
+}
+
+export function failMissingWorkflowApprovalAttempt(
+  projection: VerdictEventProjection,
+): VerdictEventProjection {
+  if (classifyMissingWorkflowApproval(projection) !== "attempt_failed") {
+    throw new Error(
+      "Only a completed workflow attempt without an approval event may be failed.",
+    );
+  }
+  return {
+    ...projection,
+    error:
+      "Verdict attempted the workflow tool but completed without a TrueForge approval event.",
+    status: "error",
+  };
+}
+
+export function failIncompleteInvestigation(
+  projection: VerdictEventProjection,
+): VerdictEventProjection {
+  if (
+    classifyMissingWorkflowApproval(projection) !==
+    "investigation_incomplete"
+  ) {
+    throw new Error(
+      "Only a completed run missing ordered dynamic-subagent evidence may be failed as incomplete.",
+    );
+  }
+  return {
+    ...projection,
+    error:
+      "Verdict completed without observing Hunter, Surgeon and Insurance finish as dynamic subagents in order.",
+    status: "error",
+  };
+}
+
+export function buildWorkflowApprovalRequestMessage(
+  trustedTarget: WorkflowDispatchTarget,
+): string {
+  const target = assertTrustedWorkflowTarget(trustedTarget);
+  return `Insurance completed without emitting the required workflow approval event. In this response, state that the separate Verdict backend integration proof will run workflow ${target.workflowId} on ${target.owner}/${target.repo} at ref ${target.ref} with approval_nonce ${target.approvalNonce}, then immediately invoke the actual actions_run_trigger tool once. Use method run_workflow, owner ${target.owner}, repo ${target.repo}, workflow_id ${target.workflowId}, ref ${target.ref} and exactly inputs {"approval_nonce":"${target.approvalNonce}"}. Include no other inputs or arguments. Do not restate, quote, simulate or defer the tool call. Do not produce the final handoff before TrueForge pauses the actual invocation for human approval. This integration proof verifies Verdict's backend and does not reproduce or fix the source issue.`;
+}
+
+export async function requestMissingWorkflowApproval(
+  client: TrueForge,
+  projection: VerdictEventProjection,
+  trustedTarget: WorkflowDispatchTarget,
+  onProjection?: ProjectionListener,
+): Promise<VerdictEventProjection> {
+  if (!shouldRequestMissingWorkflowApproval(projection)) {
+    throw new Error(
+      "A corrective workflow request requires all three completed acts with no prior workflow attempt.",
+    );
+  }
+  if (!projection.turnId) {
+    throw new Error("A corrective workflow request requires a completed turn id.");
+  }
+
+  const abortController = new AbortController();
+  const workflowRequestTimer = setTimeout(
+    () => abortController.abort(),
+    VERDICT_WORKFLOW_REQUEST_TIMEOUT_MS,
+  );
+
+  try {
+    const next = await streamVerdictTurn(
+      client,
+      projection.sessionId,
+      [
+        {
+          type: "user.message",
+          content: buildWorkflowApprovalRequestMessage(trustedTarget),
+        },
+      ],
+      projection.turnId,
+      { ...projection, pendingApprovals: [], status: "running" },
+      onProjection,
+      { abortSignal: abortController.signal, maxRetries: 0 },
+    );
+
+    if (next.status === "approval_required") {
+      return next;
+    }
+
+    return {
+      ...next,
+      error:
+        next.error ??
+        "Verdict completed its corrective turn without invoking the approval-gated workflow tool.",
+      status: "error",
+    };
+  } catch (error) {
+    await cancelSessionAfterStreamFailure(client, projection.sessionId);
+    if (abortController.signal.aborted) {
+      throw new Error(
+        "Corrective workflow request stalled before reaching a terminal paused turn.",
+        { cause: error },
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(workflowRequestTimer);
   }
 }
 
