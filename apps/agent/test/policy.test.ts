@@ -7,6 +7,8 @@ import {
   GITHUB_MCP_TOOLS_HEADER,
   GITHUB_TOOL_WHITELIST,
   VERDICT_AGENT_INSTRUCTIONS,
+  VERDICT_ITERATION_LIMIT,
+  VERDICT_MAX_OUTPUT_TOKENS,
 } from "../src/policy.js";
 
 describe("Verdict TrueForge manifest policy", () => {
@@ -29,7 +31,7 @@ describe("Verdict TrueForge manifest policy", () => {
     expect(manifest.config?.dynamicSubAgents?.enabled).toBe(true);
     expect(manifest.model.params).toEqual({
       enable_thinking: false,
-      maxTokens: 32_768,
+      maxTokens: VERDICT_MAX_OUTPUT_TOKENS,
       parallelToolCalls: false,
       reasoningEffort: "low",
       temperature: 0,
@@ -111,7 +113,7 @@ describe("Verdict TrueForge manifest policy", () => {
     );
     expect(manifest.mcpServers?.[0]?.preload).toBe(false);
     expect(manifest.mcpServers?.[0]?.preloadTools).toEqual([]);
-    expect(manifest.config?.iterationLimit).toBe(32);
+    expect(manifest.config?.iterationLimit).toBe(VERDICT_ITERATION_LIMIT);
   });
 
   it("keeps the GitHub token only in connector headers", () => {

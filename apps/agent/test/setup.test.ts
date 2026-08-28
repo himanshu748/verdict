@@ -7,6 +7,7 @@ import {
   DAYTONA_AUTO_STOP_MINUTES,
   DAYTONA_EXEC_TIMEOUT_MS,
   HUGGING_FACE_BASE_URL,
+  HUGGING_FACE_INFERENCE_PROVIDER,
   HUGGING_FACE_MODEL_CONTEXT_LENGTH,
   HUGGING_FACE_MODEL_ID,
   HUGGING_FACE_MODEL_NAME,
@@ -56,6 +57,8 @@ describe("Hugging Face TrueForge provider", () => {
     expect(HUGGING_FACE_TRUEFORGE_MODEL).toBe(
       "huggingface/qwen3.8-27b",
     );
+    expect(HUGGING_FACE_INFERENCE_PROVIDER).toBe("deepinfra");
+    expect(HUGGING_FACE_MODEL_ID).toBe("Qwen/Qwen3.8-27B:deepinfra");
   });
 
   it("rejects a missing Hugging Face token", () => {
