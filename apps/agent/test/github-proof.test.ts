@@ -198,6 +198,207 @@ describe("GitHub workflow proof verification", () => {
     expect(sleep).toHaveBeenCalledOnce();
   });
 
+  it("retries a transient GitHub proof read failure", async () => {
+    const responses = successfulProofResponses();
+    const fetchImpl = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("fetch failed"))
+      .mockImplementation(async () => responses.shift()!);
+    const sleep = vi.fn(async () => undefined);
+
+    const proof = await confirmWorkflowProof(
+      token,
+      target,
+      baseline,
+      sourceIssue,
+      {
+        fetchImpl,
+        maxPolls: 1,
+        maxReadAttempts: 3,
+        pollIntervalMs: 1,
+        readRetryDelayMs: 10,
+        sleep,
+      },
+    );
+
+    expect(proof.workflowRun.id).toBe(202);
+    expect(fetchImpl).toHaveBeenCalledTimes(6);
+    expect(sleep).toHaveBeenCalledExactlyOnceWith(10);
+  });
+
+  it("does not replay approval while retrying post-approval reads", async () => {
+    const responses: Array<Response | Error> = [
+      jsonResponse({ workflow_runs: [workflowRun({ id: 101 })] }),
+      jsonResponse({ object: { type: "commit", sha: dispatchCommitSha } }),
+      new TypeError("fetch failed"),
+      ...successfulProofResponses(),
+    ];
+    const fetchImpl = vi.fn(async () => {
+      const response = responses.shift()!;
+      if (response instanceof Error) {
+        throw response;
+      }
+      return response;
+    });
+    const approve = vi.fn(async () => ({ status: "done" }));
+    const sleep = vi.fn(async () => undefined);
+
+    const result = await executeApprovedWorkflowWithProof(
+      token,
+      target,
+      sourceIssue,
+      approve,
+      {
+        fetchImpl,
+        maxPolls: 1,
+        maxReadAttempts: 2,
+        pollIntervalMs: 1,
+        readRetryDelayMs: 10,
+        sleep,
+      },
+    );
+
+    expect(approve).toHaveBeenCalledOnce();
+    expect(result.proof.workflowRun.id).toBe(202);
+    expect(sleep).toHaveBeenCalledExactlyOnceWith(10);
+  });
+
+  it("retries a transient GitHub response status", async () => {
+    const retryableResponse = jsonResponse({}, 503);
+    const cancelBody = vi.spyOn(retryableResponse.body!, "cancel");
+    const responses = [retryableResponse, ...successfulProofResponses()];
+    const fetchImpl = vi.fn(async () => responses.shift()!);
+    const sleep = vi.fn(async () => undefined);
+
+    const proof = await confirmWorkflowProof(
+      token,
+      target,
+      baseline,
+      sourceIssue,
+      {
+        fetchImpl,
+        maxPolls: 1,
+        maxReadAttempts: 2,
+        pollIntervalMs: 1,
+        readRetryDelayMs: 10,
+        sleep,
+      },
+    );
+
+    expect(proof.workflowRun.id).toBe(202);
+    expect(fetchImpl).toHaveBeenCalledTimes(6);
+    expect(cancelBody).toHaveBeenCalledOnce();
+    expect(sleep).toHaveBeenCalledExactlyOnceWith(10);
+  });
+
+  it("continues retrying when intermediate response cleanup fails", async () => {
+    const retryableResponse = jsonResponse({}, 503);
+    const cancelBody = vi
+      .spyOn(retryableResponse.body!, "cancel")
+      .mockRejectedValueOnce(new Error("cancel failed"));
+    const responses = [retryableResponse, ...successfulProofResponses()];
+    const fetchImpl = vi.fn(async () => responses.shift()!);
+    const sleep = vi.fn(async () => undefined);
+
+    const proof = await confirmWorkflowProof(
+      token,
+      target,
+      baseline,
+      sourceIssue,
+      {
+        fetchImpl,
+        maxPolls: 1,
+        maxReadAttempts: 2,
+        pollIntervalMs: 1,
+        readRetryDelayMs: 10,
+        sleep,
+      },
+    );
+
+    expect(proof.workflowRun.id).toBe(202);
+    expect(cancelBody).toHaveBeenCalledOnce();
+    expect(sleep).toHaveBeenCalledExactlyOnceWith(10);
+  });
+
+  it("releases the final retryable response during normal HTTP handling", async () => {
+    const finalResponse = jsonResponse({}, 503);
+    const cancelBody = vi.spyOn(finalResponse.body!, "cancel");
+    const fetchImpl = vi.fn(async () => finalResponse);
+
+    await expect(
+      confirmWorkflowProof(token, target, baseline, sourceIssue, {
+        fetchImpl,
+        maxPolls: 1,
+        maxReadAttempts: 1,
+        pollIntervalMs: 1,
+      }),
+    ).rejects.toThrow("GitHub API request failed with HTTP 503");
+    expect(fetchImpl).toHaveBeenCalledOnce();
+    expect(cancelBody).toHaveBeenCalledOnce();
+  });
+
+  it("does not retry a non-transient GitHub response", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({}, 403));
+    const sleep = vi.fn(async () => undefined);
+
+    await expect(
+      confirmWorkflowProof(token, target, baseline, sourceIssue, {
+        fetchImpl,
+        maxPolls: 1,
+        maxReadAttempts: 3,
+        pollIntervalMs: 1,
+        readRetryDelayMs: 10,
+        sleep,
+      }),
+    ).rejects.toThrow("GitHub API request failed with HTTP 403");
+    expect(fetchImpl).toHaveBeenCalledOnce();
+    expect(sleep).not.toHaveBeenCalled();
+  });
+
+  it("stops after the bounded GitHub read retry budget", async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new TypeError("fetch failed");
+    });
+    const sleep = vi.fn(async () => undefined);
+
+    await expect(
+      confirmWorkflowProof(token, target, baseline, sourceIssue, {
+        fetchImpl,
+        maxPolls: 1,
+        maxReadAttempts: 3,
+        pollIntervalMs: 1,
+        readRetryDelayMs: 10,
+        sleep,
+      }),
+    ).rejects.toThrow("fetch failed");
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    expect(sleep).toHaveBeenNthCalledWith(1, 10);
+    expect(sleep).toHaveBeenNthCalledWith(2, 20);
+  });
+
+  it("caps every exponential GitHub read delay at sixty seconds", async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new TypeError("fetch failed");
+    });
+    const sleep = vi.fn(async () => undefined);
+
+    await expect(
+      confirmWorkflowProof(token, target, baseline, sourceIssue, {
+        fetchImpl,
+        maxPolls: 1,
+        maxReadAttempts: 5,
+        pollIntervalMs: 1,
+        readRetryDelayMs: 60_000,
+        sleep,
+      }),
+    ).rejects.toThrow("fetch failed");
+    expect(fetchImpl).toHaveBeenCalledTimes(5);
+    expect(sleep).toHaveBeenCalledTimes(4);
+    for (const call of sleep.mock.calls) {
+      expect(call).toEqual([60_000]);
+    }
+  });
+
   it("keeps polling a candidate after newer runs push it to another page", async () => {
     const unrelatedRuns = Array.from({ length: 100 }, (_, index) =>
       workflowRun({

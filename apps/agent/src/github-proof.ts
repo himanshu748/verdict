@@ -4,6 +4,9 @@ const GITHUB_API_ROOT = "https://api.github.com";
 const GITHUB_API_VERSION = "2022-11-28";
 const DEFAULT_MAX_POLLS = 360;
 const DEFAULT_POLL_INTERVAL_MS = 5_000;
+const DEFAULT_MAX_READ_ATTEMPTS = 3;
+const DEFAULT_READ_RETRY_DELAY_MS = 1_000;
+const MAX_READ_RETRY_DELAY_MS = 60_000;
 const WORKFLOW_RUNS_PAGE_SIZE = 100;
 const PROOF_KIND = "VERDICT_WORKFLOW_PROOF";
 const PROOF_MODE = "INTEGRATION_PROOF";
@@ -74,8 +77,10 @@ export interface ConfirmedWorkflowProof {
 
 export interface WorkflowProofPollingOptions {
   fetchImpl?: GitHubFetch;
+  maxReadAttempts?: number;
   maxPolls?: number;
   pollIntervalMs?: number;
+  readRetryDelayMs?: number;
   sleep?: (milliseconds: number) => Promise<void>;
 }
 
@@ -164,6 +169,14 @@ function gitBlobUrl(target: WorkflowDispatchTarget, blobSha: string): string {
   return `${repositoryApiRoot(target)}/git/blobs/${encodePathSegment(blobSha, "blob SHA")}`;
 }
 
+async function releaseResponseBody(response: Response): Promise<void> {
+  try {
+    await response.body?.cancel();
+  } catch {
+    // Cleanup is best-effort. Preserve the original retry or HTTP result.
+  }
+}
+
 async function requestGitHubJson(
   url: string,
   token: string,
@@ -178,6 +191,7 @@ async function requestGitHubJson(
   });
 
   if (!response.ok) {
+    await releaseResponseBody(response);
     throw new Error(`GitHub API request failed with HTTP ${response.status}.`);
   }
 
@@ -186,6 +200,80 @@ async function requestGitHubJson(
   } catch {
     throw new Error("GitHub API returned an invalid JSON response.");
   }
+}
+
+function createRetryingGitHubReadFetch(
+  fetchImpl: GitHubFetch,
+  options: WorkflowProofPollingOptions,
+): GitHubFetch {
+  const maxReadAttempts =
+    options.maxReadAttempts ?? DEFAULT_MAX_READ_ATTEMPTS;
+  const readRetryDelayMs =
+    options.readRetryDelayMs ?? DEFAULT_READ_RETRY_DELAY_MS;
+  const sleep =
+    options.sleep ??
+    ((milliseconds: number) =>
+      new Promise<void>((resolve) => setTimeout(resolve, milliseconds)));
+
+  if (
+    !Number.isSafeInteger(maxReadAttempts) ||
+    maxReadAttempts < 1 ||
+    maxReadAttempts > 5
+  ) {
+    throw new Error("maxReadAttempts must be an integer from 1 through 5.");
+  }
+  if (
+    !Number.isSafeInteger(readRetryDelayMs) ||
+    readRetryDelayMs < 0 ||
+    readRetryDelayMs > MAX_READ_RETRY_DELAY_MS
+  ) {
+    throw new Error(
+      "readRetryDelayMs must be a non-negative integer no greater than 60000.",
+    );
+  }
+
+  return async (input, init) => {
+    const method = init?.method?.toUpperCase() ?? "GET";
+    if (method !== "GET") {
+      throw new Error("The retried GitHub proof transport permits GET reads only.");
+    }
+
+    for (let attempt = 1; attempt <= maxReadAttempts; attempt += 1) {
+      let response: Response;
+      try {
+        response = await fetchImpl(input, init);
+      } catch (error) {
+        if (attempt === maxReadAttempts) {
+          throw error;
+        }
+        await sleep(
+          Math.min(
+            readRetryDelayMs * 2 ** (attempt - 1),
+            MAX_READ_RETRY_DELAY_MS,
+          ),
+        );
+        continue;
+      }
+
+      const retryableStatus =
+        response.status === 408 ||
+        response.status === 429 ||
+        response.status >= 500;
+      if (!retryableStatus || attempt === maxReadAttempts) {
+        return response;
+      }
+
+      await releaseResponseBody(response);
+      await sleep(
+        Math.min(
+          readRetryDelayMs * 2 ** (attempt - 1),
+          MAX_READ_RETRY_DELAY_MS,
+        ),
+      );
+    }
+
+    throw new Error("GitHub read retry loop ended unexpectedly.");
+  };
 }
 
 function parseWorkflowRun(value: unknown): WorkflowRunRecord {
@@ -448,13 +536,15 @@ export async function captureWorkflowRunBaseline(
   githubToken: string,
   target: WorkflowDispatchTarget,
   fetchImpl: GitHubFetch = (input, init) => fetch(input, init),
+  options: WorkflowProofPollingOptions = {},
 ): Promise<WorkflowRunBaseline> {
   const token = requireFineGrainedToken(githubToken);
-  const runs = await listWorkflowRuns(token, target, fetchImpl);
+  const retriedFetch = createRetryingGitHubReadFetch(fetchImpl, options);
+  const runs = await listWorkflowRuns(token, target, retriedFetch);
   const targetRef = await requestGitHubJson(
     targetRefUrl(target),
     token,
-    fetchImpl,
+    retriedFetch,
   );
   return {
     runIds: new Set(runs.map((run) => run.id)),
@@ -582,7 +672,8 @@ export async function confirmWorkflowProof(
   options: WorkflowProofPollingOptions = {},
 ): Promise<ConfirmedWorkflowProof> {
   const token = requireFineGrainedToken(githubToken);
-  const fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
+  const rawFetch = options.fetchImpl ?? ((input, init) => fetch(input, init));
+  const fetchImpl = createRetryingGitHubReadFetch(rawFetch, options);
   const maxPolls = options.maxPolls ?? DEFAULT_MAX_POLLS;
   const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const sleep =
@@ -690,6 +781,7 @@ export async function executeApprovedWorkflowWithProof<T>(
     githubToken,
     target,
     fetchImpl,
+    options,
   );
   const approvalResult = await approve();
   const proof = await confirmWorkflowProof(
