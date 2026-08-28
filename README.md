@@ -4,7 +4,12 @@
 
 Verdict investigates flaky GitHub issues by experiment rather than by inference. You give it an issue, a maintainer-approved command, a bounded set of condition knobs and a run budget. It searches only that space, keeps every run record it produced and returns the smallest condition that met your reproduction threshold, a reviewable suspect range and a regression plan. When the evidence does not support a claim, it says so instead of rounding up to confidence. The only public write stays behind a maintainer's approval.
 
-## Run it
+## Try it
+
+- **Live:** <https://verdict-steel.vercel.app>
+- **Issue workspace:** <https://verdict-steel.vercel.app/case/demo>
+
+## Run it locally
 
 Requirements: Node 22.14 or newer, Corepack and pnpm 11.23.
 
