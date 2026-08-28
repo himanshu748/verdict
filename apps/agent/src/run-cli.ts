@@ -12,6 +12,7 @@ import {
   buildVerdictRunConfig,
   classifyMissingWorkflowApproval,
   denyVerdictApprovals,
+  failIncompleteInvestigation,
   failMissingWorkflowApprovalAttempt,
   parseVerdictDecision,
   requestMissingWorkflowApproval,
@@ -104,6 +105,8 @@ if (missingWorkflowApproval === "request_required") {
   );
 } else if (missingWorkflowApproval === "attempt_failed") {
   projection = failMissingWorkflowApprovalAttempt(projection);
+} else if (missingWorkflowApproval === "investigation_incomplete") {
+  projection = failIncompleteInvestigation(projection);
 }
 
 let confirmedWorkflowProofs: ConfirmedWorkflowProof[] = [];

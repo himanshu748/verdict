@@ -26,6 +26,7 @@ export const VERDICT_WORKFLOW_REQUEST_TIMEOUT_MS = 60_000;
 
 export type MissingWorkflowApprovalState =
   | "not_applicable"
+  | "investigation_incomplete"
   | "request_required"
   | "attempt_failed";
 
@@ -994,9 +995,14 @@ function completedActsAreOrdered(
 ): boolean {
   let priorIndex = -1;
   return ["Hunter", "Surgeon", "Insurance"].every((name) => {
+    const expectedIdentity = name.toLowerCase();
     const nextIndex = projection.threads.findIndex(
       (thread, index) =>
-        index > priorIndex && thread.name === name && thread.status === "done",
+        index > priorIndex &&
+        thread.status === "done" &&
+        [thread.name, thread.title].some(
+          (identity) => identity.trim().toLowerCase() === expectedIdentity,
+        ),
     );
     priorIndex = nextIndex;
     return nextIndex !== -1;
@@ -1006,19 +1012,23 @@ function completedActsAreOrdered(
 export function classifyMissingWorkflowApproval(
   projection: VerdictEventProjection,
 ): MissingWorkflowApprovalState {
-  const orderedActsCompleted = completedActsAreOrdered(projection);
   const workflowAlreadyAttempted = projection.modelToolCalls.some(
     isWorkflowToolCallCandidate,
   );
 
-  const applies =
+  const completedWithoutApproval =
     projection.status === "done" &&
-    projection.pendingApprovals.length === 0 &&
-    orderedActsCompleted;
-  if (!applies) {
+    projection.pendingApprovals.length === 0;
+  if (!completedWithoutApproval) {
     return "not_applicable";
   }
-  return workflowAlreadyAttempted ? "attempt_failed" : "request_required";
+  if (!completedActsAreOrdered(projection)) {
+    return "investigation_incomplete";
+  }
+  if (workflowAlreadyAttempted) {
+    return "attempt_failed";
+  }
+  return "request_required";
 }
 
 export function shouldRequestMissingWorkflowApproval(
@@ -1039,6 +1049,25 @@ export function failMissingWorkflowApprovalAttempt(
     ...projection,
     error:
       "Verdict attempted the workflow tool but completed without a TrueForge approval event.",
+    status: "error",
+  };
+}
+
+export function failIncompleteInvestigation(
+  projection: VerdictEventProjection,
+): VerdictEventProjection {
+  if (
+    classifyMissingWorkflowApproval(projection) !==
+    "investigation_incomplete"
+  ) {
+    throw new Error(
+      "Only a completed run missing ordered dynamic-subagent evidence may be failed as incomplete.",
+    );
+  }
+  return {
+    ...projection,
+    error:
+      "Verdict completed without observing Hunter, Surgeon and Insurance finish as dynamic subagents in order.",
     status: "error",
   };
 }

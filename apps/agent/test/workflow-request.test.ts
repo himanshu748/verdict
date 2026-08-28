@@ -4,6 +4,7 @@ import {
   buildWorkflowApprovalRequestMessage,
   classifyMissingWorkflowApproval,
   createVerdictProjection,
+  failIncompleteInvestigation,
   failMissingWorkflowApprovalAttempt,
   requestMissingWorkflowApproval,
   shouldRequestMissingWorkflowApproval,
@@ -71,13 +72,21 @@ describe("missing workflow approval correction", () => {
     );
   });
 
-  it("requires all three observed acts to complete", () => {
+  it("fails closed when any observed act is missing", () => {
     const projection = completedProjection();
     projection.threads = projection.threads.filter(
       (thread) => thread.name !== "Surgeon",
     );
 
     expect(shouldRequestMissingWorkflowApproval(projection)).toBe(false);
+    expect(classifyMissingWorkflowApproval(projection)).toBe(
+      "investigation_incomplete",
+    );
+    expect(failIncompleteInvestigation(projection)).toMatchObject({
+      error:
+        "Verdict completed without observing Hunter, Surgeon and Insurance finish as dynamic subagents in order.",
+      status: "error",
+    });
   });
 
   it("requires the observed acts to complete in order", () => {
@@ -89,8 +98,53 @@ describe("missing workflow approval correction", () => {
     ];
 
     expect(classifyMissingWorkflowApproval(projection)).toBe(
-      "not_applicable",
+      "investigation_incomplete",
     );
+  });
+
+  it("accepts the required act identity from an observed thread title", () => {
+    const projection = completedProjection();
+    projection.threads = projection.threads.map((thread, index) => ({
+      ...thread,
+      name: `worker-${index + 1}`,
+    }));
+
+    expect(classifyMissingWorkflowApproval(projection)).toBe(
+      "request_required",
+    );
+  });
+
+  it("does not let root fallback prose impersonate missing subagents", () => {
+    const projection = completedProjection();
+    projection.threads = projection.threads.slice(0, 1);
+    projection.assistantText =
+      "Surgeon unresolved packet. Insurance unresolved packet. Workflow approval pending.";
+
+    expect(classifyMissingWorkflowApproval(projection)).toBe(
+      "investigation_incomplete",
+    );
+    expect(failIncompleteInvestigation(projection).status).toBe("error");
+  });
+
+  it("prioritizes missing act structure over an attempted workflow", () => {
+    const projection = completedProjection();
+    projection.threads = projection.threads.slice(0, 1);
+    projection.modelToolCalls = [
+      {
+        argumentsJson: "{}",
+        functionName: "actions_run_trigger",
+        index: 0,
+        sourceEventId: "event-workflow",
+        threadId: "thread-root",
+        toolCallId: "call-workflow",
+        toolInfo: null,
+      },
+    ];
+
+    expect(classifyMissingWorkflowApproval(projection)).toBe(
+      "investigation_incomplete",
+    );
+    expect(failIncompleteInvestigation(projection).status).toBe("error");
   });
 
   it("does not duplicate an observed workflow attempt", () => {
