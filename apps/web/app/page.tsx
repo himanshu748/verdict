@@ -16,62 +16,63 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import Image from "next/image";
 import { ExposurePreview } from "@/components/exposure-preview";
+import { Reveal } from "@/components/reveal";
 import { ThemeToggle } from "@/components/theme-toggle";
 import styles from "./page.module.css";
 
 const proofChain = [
   {
     icon: GithubLogo,
-    label: "Issue",
-    value: "One uncertain report",
+    label: "You give it",
+    value: "An issue and a test command",
   },
   {
     icon: Crosshair,
-    label: "Experiment",
-    value: "A bounded condition matrix",
+    label: "It varies",
+    value: "Timeouts, delays, upstream behaviour",
   },
   {
     icon: ClipboardText,
-    label: "Evidence",
-    value: "Commands, environments and records",
+    label: "It records",
+    value: "Every run, pass or fail",
   },
   {
     icon: ShieldCheck,
-    label: "Decision",
-    value: "A reviewable verdict",
+    label: "You get",
+    value: "The condition that reproduces it",
   },
 ];
 
 const investigationActs = [
   {
     className: styles.actHunter,
-    copy: "Search the approved condition space, preserve unresolved runs and stop at the smallest supported claim.",
+    copy: "Runs your command across every condition you approved and counts how many attempts reproduced the bug. Conditions that half worked stay on the board as partial.",
     icon: Crosshair,
-    mandate: "Find the trigger",
-    output: "Reproducer or honest partial",
+    mandate: "Make it fail on demand",
+    output: "A condition that reproduces, or an honest miss",
     title: "Hunter",
   },
   {
     className: styles.actSurgeon,
-    copy: "Inspect the static suspect range, then replay the reproducer across buildable history when execution is available.",
+    copy: "Takes the condition that reproduced and narrows it to the commits that could have caused it, replaying the same command across history where the code still builds.",
     icon: GitCommit,
-    mandate: "Localize the change",
-    output: "Suspect range or runtime boundary",
+    mandate: "Find what caused it",
+    output: "A commit range, with its limits stated",
     title: "Surgeon",
   },
   {
     className: styles.actInsurance,
-    copy: "Turn the evidence into a regression plan and prepare a publication manifest for maintainer review.",
+    copy: "Turns the confirmed evidence into a regression-proof plan: the test name, the fixture and the assertion that should fail. It does not write the test, and a draft pull request is only ever opened by a workflow you approved.",
     icon: ShieldCheck,
-    mandate: "Keep it fixed",
-    output: "Regression plan and gated handoff",
+    mandate: "Stop it coming back",
+    output: "A regression plan, held for your approval",
     title: "Insurance",
   },
 ];
 
 const workspaceStats = [
-  ["12", "conditions in the approved search space"],
-  ["10", "records generated per condition"],
+  ["8", "conditions per run, at most"],
+  ["3", "repetitions per condition, at most"],
   ["4", "read-only GitHub tools the agent may call"],
   ["1", "approval gate before any public write"],
 ];
@@ -161,16 +162,27 @@ export default function HomePage() {
         </nav>
       </header>
 
+      <Reveal />
+
       <main id="main-content">
         <section className={styles.hero} id="top">
           <div className={styles.heroCopy}>
-            <p className={styles.eyebrow}>Evidence-first agent for flaky bugs</p>
+            <p className={styles.eyebrow}>Reproduction agent for flaky bugs</p>
             <h1>
-              <span>Prove the bug</span>
-              <span>before you fix it.</span>
+              <span>Find the exact</span>
+              <span>condition that</span>
+              <span>makes it fail.</span>
             </h1>
             <p className={styles.heroLede}>
-              Verdict turns one GitHub issue into reproducible conditions, a suspect range and a regression plan you can audit.
+              Some bugs only show up sometimes, so nobody can prove they are
+              fixed. Verdict runs your test command again and again under
+              conditions you approve, a tighter timeout, a slower upstream, no
+              response at all, until it finds the combination that breaks it.
+            </p>
+            <p className={styles.heroLede}>
+              You get back the exact command, how often it failed, the commit
+              range it points at and a regression plan to stop it returning.
+              Nothing is written to your repository without your approval.
             </p>
             <div className={styles.heroActions}>
               <a className={`${styles.button} ${styles.buttonPrimary}`} href="/case/demo">
@@ -206,14 +218,19 @@ export default function HomePage() {
         </section>
 
         <section className={styles.productSection} id="workspace">
-          <div className={styles.sectionHeading}>
-            <h2>The investigation is the interface.</h2>
+          <div className={styles.sectionHeading} data-reveal>
+            <h2>A grid of conditions. The one that reproduces.</h2>
             <p>
-              Every condition, record and command stays on one board. Select a condition to see the evidence behind its state.
+              Each cell is one setting of the knobs you approved, run several
+              times. The count in the corner is how many of those runs
+              reproduced the bug. Select a cell and you see the command that
+              produced it, the exit code and the commit it ran against. The
+              board below is the bundled fixture, and its numbers are generated
+              rather than executed.
             </p>
           </div>
 
-          <figure className={styles.productFrame}>
+          <figure className={styles.productFrame} data-reveal>
             <div className={styles.frameBar}>
               <span className={styles.frameDots} aria-hidden="true" />
               <span className={styles.frameUrl}>verdict / case / TF-417</span>
@@ -240,7 +257,7 @@ export default function HomePage() {
             />
           </figure>
 
-          <dl className={styles.statRow}>
+          <dl className={styles.statRow} data-reveal>
             {workspaceStats.map(([figure, note]) => (
               <div key={note}>
                 <dt>{figure}</dt>
@@ -253,9 +270,12 @@ export default function HomePage() {
         <section className={styles.dossierSection} id="evidence">
           <div className={styles.dossierCopy}>
             <FileMagnifyingGlass aria-hidden="true" size={34} weight="regular" />
-            <h2>A bug report is only a lead.</h2>
+            <h2>Every claim shows its receipt.</h2>
             <p>
-              Verdict keeps the proposed command, environment and generated records together. Missing evidence stays visible instead of becoming confidence.
+              A result you cannot check is a rumour. Verdict keeps the command,
+              the environment and every run record attached to the claim they
+              produced, and it marks what it could not establish rather than
+              quietly leaving it out.
             </p>
             <a href="/case/demo">
               Inspect the full evidence trail
@@ -263,7 +283,7 @@ export default function HomePage() {
             </a>
           </div>
 
-          <article className={styles.dossier} aria-label="Conceptual Verdict record">
+          <article data-reveal className={styles.dossier} aria-label="Conceptual Verdict record">
             <header>
               <div>
                 <span>Verdict record</span>
@@ -297,11 +317,11 @@ export default function HomePage() {
         </section>
 
         <section className={styles.methodSection} id="method">
-          <div className={styles.sectionHeading}>
-            <h2>Three acts. One narrowing claim.</h2>
-            <p>Each act earns the right to say less, but say it with evidence.</p>
+          <div className={styles.sectionHeading} data-reveal>
+            <h2>Find it, then narrow it, then keep it fixed.</h2>
+            <p>Three stages, each one allowed to claim less than the evidence it collected.</p>
           </div>
-          <div className={styles.actGrid}>
+          <div className={styles.actGrid} data-reveal>
             {investigationActs.map(({ className, copy, icon: Icon, mandate, output, title }) => (
               <article className={`${styles.act} ${className}`} key={title}>
                 <div className={styles.actTopline}>
@@ -317,11 +337,11 @@ export default function HomePage() {
         </section>
 
         <section className={styles.capabilitySection} id="product">
-          <div className={styles.sectionHeading}>
-            <h2>What you get from a run.</h2>
-            <p>Six guarantees the product holds whether or not the bug reproduces.</p>
+          <div className={styles.sectionHeading} data-reveal>
+            <h2>What you get, even when it does not reproduce.</h2>
+            <p>A run that finds nothing still costs what you agreed and still tells you what it tried.</p>
           </div>
-          <div className={styles.capabilityGrid}>
+          <div className={styles.capabilityGrid} data-reveal>
             {capabilities.map(({ copy, icon: Icon, title }) => (
               <article className={styles.capability} key={title}>
                 <Icon aria-hidden="true" size={24} weight="regular" />
@@ -335,9 +355,12 @@ export default function HomePage() {
         <section className={styles.safetySection} id="safety">
           <div className={styles.safetyCopy}>
             <LockKey aria-hidden="true" size={34} weight="regular" />
-            <h2>The agent stops before the public write.</h2>
+            <h2>It cannot touch your repo without you.</h2>
             <p>
-              The trusted host policy verifies the repository, workflow and ref. The maintainer reviews the proposed files before anything public happens.
+              Until you approve a dispatch, Verdict holds four read-only GitHub
+              tools and nothing else. When it does propose a write, you see the
+              exact repository, workflow and files first. The default is to stay
+              read-only.
             </p>
           </div>
 
@@ -360,10 +383,10 @@ export default function HomePage() {
         </section>
 
         <section className={styles.faqSection}>
-          <div className={styles.sectionHeading}>
+          <div className={styles.sectionHeading} data-reveal>
             <h2>Straight answers.</h2>
           </div>
-          <div className={styles.faqGrid}>
+          <div className={styles.faqGrid} data-reveal>
             {faq.map(([question, answer]) => (
               <div className={styles.faqItem} key={question}>
                 <h3>{question}</h3>
@@ -376,7 +399,7 @@ export default function HomePage() {
         <section className={styles.closingSection}>
           <div>
             <span>One flaky issue is enough.</span>
-            <h2>Bring the bug that only happens sometimes.</h2>
+            <h2>Bring the bug nobody can reproduce.</h2>
           </div>
           <a className={`${styles.button} ${styles.buttonPrimary}`} href="/case/demo">
             Open case #417

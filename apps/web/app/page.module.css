@@ -1127,3 +1127,38 @@
     transition: none;
   }
 }
+
+
+.capability {
+  transition: border-color 200ms ease, transform 200ms ease;
+}
+
+.capability:hover {
+  border-color: color-mix(in srgb, var(--signal) 46%, transparent);
+  transform: translateY(-3px);
+}
+
+.faqItem {
+  transition: background-color 200ms ease;
+}
+
+.faqItem:hover {
+  background: color-mix(in srgb, var(--surface) 70%, var(--canvas));
+}
+
+.productFrame {
+  transition: transform 320ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    box-shadow 320ms ease;
+}
+
+.productFrame:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 36px 84px -40px rgb(0 0 0 / 0.72);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capability:hover,
+  .productFrame:hover {
+    transform: none;
+  }
+}
