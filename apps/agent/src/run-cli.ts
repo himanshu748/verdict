@@ -16,6 +16,7 @@ import {
   type VerdictEventProjection,
 } from "./session.js";
 import { sanitizeTerminalField } from "./terminal.js";
+import { startWithTransientProviderRetry } from "./transient-retry.js";
 
 function printObservedEvent(
   projection: VerdictEventProjection,
@@ -73,11 +74,21 @@ const onProjection = (
   event: TrueForgeApi.TurnStreamingEvent,
 ) => printObservedEvent(projection, event);
 
-let projection = await startVerdictInvestigation(
-  client,
-  config.investigationTarget,
-  config.workflowTarget,
-  onProjection,
+let projection = await startWithTransientProviderRetry(
+  () =>
+    startVerdictInvestigation(
+      client,
+      config.investigationTarget,
+      config.workflowTarget,
+      onProjection,
+    ),
+  {
+    onRetry: ({ attempt, delayMs, maxAttempts }) => {
+      console.error(
+        `[retry:provider] transient pre-approval failure after attempt ${attempt}/${maxAttempts}; retrying in ${delayMs}ms`,
+      );
+    },
+  },
 );
 let confirmedWorkflowProofs: ConfirmedWorkflowProof[] = [];
 
