@@ -4,7 +4,7 @@ import type {
 } from "./github-proof.js";
 import type { VerdictEventProjection } from "./session.js";
 
-const MAX_APPROVED_WORKFLOW_DISPATCHES = 2;
+const MAX_APPROVED_WORKFLOW_DISPATCHES = 1;
 
 export type ApprovalTurnDecision = "approve" | "deny";
 
@@ -17,6 +17,7 @@ export interface ApprovalTurnHandlers {
   ) => Promise<ApprovalTurnDecision>;
   deny: (
     projection: VerdictEventProjection,
+    reason?: string,
   ) => Promise<VerdictEventProjection>;
 }
 
@@ -37,8 +38,12 @@ export async function resolveApprovalTurns(
     if (
       confirmedWorkflowProofs.length >= MAX_APPROVED_WORKFLOW_DISPATCHES
     ) {
+      await handlers.deny(
+        projection,
+        "Verdict policy denied a repeated workflow dispatch after one confirmed proof.",
+      );
       throw new Error(
-        "Verdict cannot request more than two approved workflow dispatches per investigation.",
+        "Verdict cannot request more than one approved workflow dispatch per investigation.",
       );
     }
     if (!projection.turnId) {

@@ -10,8 +10,11 @@ import {
 import {
   approveVerdictWorkflow,
   buildVerdictRunConfig,
+  classifyMissingWorkflowApproval,
   denyVerdictApprovals,
+  failMissingWorkflowApprovalAttempt,
   parseVerdictDecision,
+  requestMissingWorkflowApproval,
   startVerdictInvestigation,
   type VerdictEventProjection,
 } from "./session.js";
@@ -90,6 +93,19 @@ let projection = await startWithTransientProviderRetry(
     },
   },
 );
+
+const missingWorkflowApproval = classifyMissingWorkflowApproval(projection);
+if (missingWorkflowApproval === "request_required") {
+  projection = await requestMissingWorkflowApproval(
+    client,
+    projection,
+    config.workflowTarget,
+    onProjection,
+  );
+} else if (missingWorkflowApproval === "attempt_failed") {
+  projection = failMissingWorkflowApprovalAttempt(projection);
+}
+
 let confirmedWorkflowProofs: ConfirmedWorkflowProof[] = [];
 
 if (projection.status === "approval_required") {
@@ -136,11 +152,14 @@ if (projection.status === "approval_required") {
               onProjection,
             ),
         ),
-      deny: (pendingProjection) =>
+      deny: (
+        pendingProjection,
+        reason = "Maintainer denied the proposed public write.",
+      ) =>
         denyVerdictApprovals(
           client,
           pendingProjection,
-          "Maintainer denied the proposed public write.",
+          reason,
           onProjection,
         ),
     });

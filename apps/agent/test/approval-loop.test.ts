@@ -47,15 +47,14 @@ function proof(id: number): ConfirmedWorkflowProof {
 }
 
 describe("approval turn loop", () => {
-  it("handles every sequential approval until the investigation is done", async () => {
+  it("allows one approved workflow dispatch", async () => {
     const first = projection("turn-1", "approval_required");
-    const second = projection("turn-2", "approval_required");
-    const done = projection("turn-3", "done");
+    const done = projection("turn-2", "done");
     const decide = vi.fn(async () => "approve" as const);
-    const approve = vi
-      .fn()
-      .mockResolvedValueOnce({ approvalResult: second, proof: proof(201) })
-      .mockResolvedValueOnce({ approvalResult: done, proof: proof(202) });
+    const approve = vi.fn().mockResolvedValue({
+      approvalResult: done,
+      proof: proof(201),
+    });
     const deny = vi.fn();
 
     const result = await resolveApprovalTurns(first, {
@@ -64,14 +63,12 @@ describe("approval turn loop", () => {
       deny,
     });
 
-    expect(decide).toHaveBeenCalledTimes(2);
+    expect(decide).toHaveBeenCalledTimes(1);
     expect(approve).toHaveBeenNthCalledWith(1, first);
-    expect(approve).toHaveBeenNthCalledWith(2, second);
     expect(deny).not.toHaveBeenCalled();
     expect(result.projection).toBe(done);
     expect(result.confirmedWorkflowProofs.map((item) => item.workflowRun.id)).toEqual([
       201,
-      202,
     ]);
   });
 
@@ -101,20 +98,24 @@ describe("approval turn loop", () => {
     expect(result.confirmedWorkflowProofs).toHaveLength(1);
   });
 
-  it("fails closed before a third approved dispatch can be requested", async () => {
+  it("fails closed before a second approved dispatch can be requested", async () => {
     const first = projection("turn-1", "approval_required");
     const second = projection("turn-2", "approval_required");
-    const third = projection("turn-3", "approval_required");
     const decide = vi.fn(async () => "approve" as const);
-    const approve = vi
-      .fn()
-      .mockResolvedValueOnce({ approvalResult: second, proof: proof(201) })
-      .mockResolvedValueOnce({ approvalResult: third, proof: proof(202) });
+    const approve = vi.fn().mockResolvedValueOnce({
+      approvalResult: second,
+      proof: proof(201),
+    });
+    const deny = vi.fn();
 
     await expect(
-      resolveApprovalTurns(first, { approve, decide, deny: vi.fn() }),
-    ).rejects.toThrow("more than two approved workflow dispatches");
-    expect(decide).toHaveBeenCalledTimes(2);
-    expect(approve).toHaveBeenCalledTimes(2);
+      resolveApprovalTurns(first, { approve, decide, deny }),
+    ).rejects.toThrow("more than one approved workflow dispatch");
+    expect(decide).toHaveBeenCalledTimes(1);
+    expect(approve).toHaveBeenCalledTimes(1);
+    expect(deny).toHaveBeenCalledWith(
+      second,
+      "Verdict policy denied a repeated workflow dispatch after one confirmed proof.",
+    );
   });
 });

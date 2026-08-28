@@ -101,6 +101,15 @@ describe("Verdict TrueForge manifest policy", () => {
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
       "Request the host-authorized workflow once as a separate Verdict integration proof",
     );
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "Requesting approval means invoking the actual actions_run_trigger tool",
+    );
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "Do not return a prose-only workflow proposal",
+    );
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "the root's next action must be the same exact actions_run_trigger invocation",
+    );
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain("ACT 1, HUNTER");
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain("at most 8 condition cells");
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain("ACT 2, SURGEON");
