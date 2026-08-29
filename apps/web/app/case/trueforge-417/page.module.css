@@ -1,0 +1,231 @@
+.page {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: clamp(48px, 7vw, 96px) clamp(20px, 5vw, 40px) 120px;
+}
+
+.header {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: clamp(28px, 4vw, 44px);
+  margin-bottom: clamp(36px, 5vw, 60px);
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  color: var(--signal);
+  font-family: var(--font-data);
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.header h1 {
+  margin: 0 0 18px;
+  font-size: clamp(2rem, 4.4vw, 3rem);
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+}
+
+.lede {
+  margin: 0 0 30px;
+  max-width: 62ch;
+  color: var(--muted-text);
+  font-size: 1.02rem;
+  line-height: 1.62;
+}
+
+.summary {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  margin: 0 0 20px;
+}
+
+.summary dt {
+  margin-bottom: 7px;
+  color: var(--muted-text);
+  font-family: var(--font-data);
+  font-size: 0.64rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.summary dd {
+  margin: 0;
+  font-size: 0.98rem;
+}
+
+.verdict {
+  color: var(--clean);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.note {
+  margin: 0;
+  color: var(--muted-text);
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
+.contrast {
+  margin-bottom: clamp(40px, 6vw, 68px);
+}
+
+.contrast h2,
+.conditionSection h2 {
+  margin: 0 0 12px;
+  font-size: clamp(1.3rem, 2.4vw, 1.7rem);
+  letter-spacing: -0.01em;
+}
+
+.contrast p {
+  margin: 0 0 26px;
+  max-width: 60ch;
+  color: var(--muted-text);
+  line-height: 1.62;
+}
+
+.contrastGrid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.failingCard,
+.controlCard {
+  padding: 26px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.failingCard {
+  border-color: color-mix(in srgb, var(--signal) 55%, var(--line));
+}
+
+.failingCard h3,
+.controlCard h3 {
+  margin: 0 0 16px;
+  font-size: 0.84rem;
+  font-weight: 500;
+}
+
+.ratio {
+  margin: 0 0 8px !important;
+  font-size: clamp(1.9rem, 4vw, 2.5rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.failingCard .ratio {
+  color: var(--signal);
+}
+
+.controlCard .ratio {
+  color: var(--clean);
+}
+
+.state {
+  margin: 0 !important;
+  font-family: var(--font-data);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+}
+
+.conditionSection {
+  margin-bottom: clamp(40px, 6vw, 64px);
+}
+
+.conditionMeta {
+  margin: 0 0 20px;
+  color: var(--muted-text);
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* The run table is the widest thing on the page, so it scrolls inside its own
+   box rather than pushing the document sideways on a phone. */
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+.table th,
+.table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+
+.table thead th {
+  color: var(--muted-text);
+  font-family: var(--font-data);
+  font-size: 0.64rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.table tbody tr:last-child th,
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table tbody th {
+  font-weight: 500;
+}
+
+.excerpt {
+  color: var(--muted-text);
+  max-width: 320px;
+}
+
+.command {
+  margin-top: 20px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.command summary {
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.command pre {
+  overflow-x: auto;
+  margin: 16px 0 12px;
+  padding: 16px;
+  border-radius: calc(var(--radius) * 0.7);
+  background: var(--canvas);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.command p {
+  margin: 0;
+  color: var(--muted-text);
+  font-size: 0.84rem;
+}
+
+.footer {
+  padding-top: 28px;
+  border-top: 1px solid var(--line);
+  color: var(--muted-text);
+  font-size: 0.9rem;
+  line-height: 1.62;
+}
+
+.footer a {
+  color: var(--signal);
+}
