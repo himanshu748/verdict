@@ -476,7 +476,7 @@
   background: color-mix(in srgb, var(--surface) 40%, var(--canvas));
 }
 
-:global(html:not(.dark)):global(html:not(.dark)).productLink {
+.productLink {
   margin: 0 0 clamp(36px, 4vw, 52px);
 }
 
