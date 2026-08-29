@@ -75,7 +75,7 @@ function proofDocument(overrides: Record<string, unknown> = {}) {
       stalledRuns: 10,
       responsiveControls: 10,
     },
-    verificationCommand: "pnpm --filter @verdict/agent test",
+    verificationCommand: "pnpm turbo run test --filter=@verdict/agent",
     verificationOutcome: "PASSED",
     workflow: "Verdict approved investigation proof",
     runId: 202,

@@ -16,7 +16,7 @@ const MAX_READ_RETRY_DELAY_MS = 60_000;
 const WORKFLOW_RUNS_PAGE_SIZE = 100;
 const PROOF_KIND = "VERDICT_WORKFLOW_PROOF";
 const PROOF_MODE = "INTEGRATION_PROOF";
-const PROOF_COMMAND = "pnpm --filter @verdict/agent test";
+const PROOF_COMMAND = "pnpm turbo run test --filter=@verdict/agent";
 const PROOF_WORKFLOW_NAME = "Verdict approved investigation proof";
 
 export type GitHubFetch = (
