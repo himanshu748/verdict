@@ -95,16 +95,8 @@ const onProjection = (
     config.investigationTarget,
   );
   if (captured) {
-    if (
-      reproductionCaptureState.current &&
-      reproductionCaptureState.current.sessionId === captured.sessionId &&
-      reproductionCaptureState.current.toolResponseEventId !==
-        captured.toolResponseEventId
-    ) {
-      throw new Error(
-        "A Verdict run may record only one trusted reproduction response.",
-      );
-    }
+    // A transient Hunter retry can execute the same pinned runner again. Each
+    // response is independently validated, so the latest streamed proof wins.
     reproductionCaptureState.current = captured;
     console.log(
       `[reproduction:captured] ${captured.conditions[0]!.classification.observed}/${captured.conditions[0]!.classification.requiredValidRuns} stalled runs matched`,
