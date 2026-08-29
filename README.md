@@ -33,7 +33,7 @@ pnpm test
 pnpm build
 ```
 
-That runs `tsc --noEmit` across the agent and protocol packages, ESLint on the web app, 220 tests and a production Next.js build. CI runs the same commands on every push and pull request, and recomputes the reproduction hash, so the claim on the landing page is checked rather than restated.
+That runs `tsc --noEmit` across the agent and protocol packages, ESLint on the web app, 220 tests and a production Next.js build. CI runs the same commands on `main` and on every pull request, and recomputes the reproduction hash, so the claim on the landing page is checked rather than restated.
 
 ## What the demo shows and what it does not
 
