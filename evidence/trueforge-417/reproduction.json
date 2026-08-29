@@ -1,6 +1,11 @@
 {
-  "capturedAt": "2026-08-29T08:04:14.312Z",
-  "command": "cd /tmp/verdict-source && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
+  "bootstrap": {
+    "command": "set -eu && curl --proto '=https' --tlsv1.2 -fsSLo /tmp/verdict-source-bootstrap.sh 'https://raw.githubusercontent.com/himanshu748/verdict/6cdf7f1b26200dfd3300af613492b09d0f3e84a9/apps/agent/source-locks/trueforge-core-0.1.4/bootstrap.sh' && printf '%s  %s\\n' 'a3f59a85438a6cf72b590e51a8c1730ef2562d8974d022a18edde93f5d2e7b23' '/tmp/verdict-source-bootstrap.sh' | sha256sum -c - && curl --proto '=https' --tlsv1.2 -fsSLo /tmp/verdict-reproduction.mjs 'https://raw.githubusercontent.com/himanshu748/verdict/4e30e12e033a2f99702733b64618f6b9b4490576/apps/agent/source-locks/trueforge-core-0.1.4/reproduce.mjs' && printf '%s  %s\\n' 'f9962816270aa063020bc616d1d984ff65996f929324ec17ddc78f906894bb06' '/tmp/verdict-reproduction.mjs' | sha256sum -c - && /bin/sh /tmp/verdict-source-bootstrap.sh && install -m 0444 /tmp/verdict-reproduction.mjs /tmp/verdict-source/verdict-reproduction.mjs",
+    "toolCallId": "chatcmpl-tool-84e2c5e47341fc4c",
+    "toolResponseEventId": "01m16abm03njj3k32sv4v8z2cj"
+  },
+  "capturedAt": "2026-08-29T08:32:26.784Z",
+  "command": "cd /tmp/verdict-source && printf '%s  %s\\n' 'f9962816270aa063020bc616d1d984ff65996f929324ec17ddc78f906894bb06' '/tmp/verdict-source/verdict-reproduction.mjs' | sha256sum -c - && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
   "conditions": [
     {
       "classification": {
@@ -14,7 +19,7 @@
       "records": [
         {
           "caseId": "truefoundry/trueforge#417",
-          "command": "cd /tmp/verdict-source && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
+          "command": "cd /tmp/verdict-source && printf '%s  %s\\n' 'f9962816270aa063020bc616d1d984ff65996f929324ec17ddc78f906894bb06' '/tmp/verdict-source/verdict-reproduction.mjs' | sha256sum -c - && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
           "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
           "conditionId": "daytona-stalled-endpoint",
           "durationMs": 1003,
@@ -29,18 +34,22 @@
             "providerTimeoutMs": "100",
             "sourceManifestId": "trueforge-417-v1"
           },
-          "exitCode": 124,
+          "exitCode": null,
+          "observation": {
+            "boundaryMs": 1000,
+            "state": "PENDING_AT_BOUNDARY"
+          },
           "outcome": "FAIL_MATCH",
           "outputExcerpt": "POST /snapshots observed; provider call remained pending for 1000 ms",
           "phase": "matrix",
           "runId": "stalled-01",
           "schemaVersion": 1,
           "signatureMatched": true,
-          "startedAt": "2026-08-29T08:04:03.119Z"
+          "startedAt": "2026-08-29T08:32:15.540Z"
         },
         {
           "caseId": "truefoundry/trueforge#417",
-          "command": "cd /tmp/verdict-source && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
+          "command": "cd /tmp/verdict-source && printf '%s  %s\\n' 'f9962816270aa063020bc616d1d984ff65996f929324ec17ddc78f906894bb06' '/tmp/verdict-source/verdict-reproduction.mjs' | sha256sum -c - && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
           "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
           "conditionId": "daytona-stalled-endpoint",
           "durationMs": 1001,
@@ -55,18 +64,22 @@
             "providerTimeoutMs": "100",
             "sourceManifestId": "trueforge-417-v1"
           },
-          "exitCode": 124,
+          "exitCode": null,
+          "observation": {
+            "boundaryMs": 1000,
+            "state": "PENDING_AT_BOUNDARY"
+          },
           "outcome": "FAIL_MATCH",
           "outputExcerpt": "POST /snapshots observed; provider call remained pending for 1000 ms",
           "phase": "matrix",
           "runId": "stalled-02",
           "schemaVersion": 1,
           "signatureMatched": true,
-          "startedAt": "2026-08-29T08:04:04.126Z"
+          "startedAt": "2026-08-29T08:32:16.547Z"
         },
         {
           "caseId": "truefoundry/trueforge#417",
-          "command": "cd /tmp/verdict-source && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
+          "command": "cd /tmp/verdict-source && printf '%s  %s\\n' 'f9962816270aa063020bc616d1d984ff65996f929324ec17ddc78f906894bb06' '/tmp/verdict-source/verdict-reproduction.mjs' | sha256sum -c - && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
           "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
           "conditionId": "daytona-stalled-endpoint",
           "durationMs": 1001,
@@ -81,122 +94,22 @@
             "providerTimeoutMs": "100",
             "sourceManifestId": "trueforge-417-v1"
           },
-          "exitCode": 124,
+          "exitCode": null,
+          "observation": {
+            "boundaryMs": 1000,
+            "state": "PENDING_AT_BOUNDARY"
+          },
           "outcome": "FAIL_MATCH",
           "outputExcerpt": "POST /snapshots observed; provider call remained pending for 1000 ms",
           "phase": "matrix",
           "runId": "stalled-03",
           "schemaVersion": 1,
           "signatureMatched": true,
-          "startedAt": "2026-08-29T08:04:05.129Z"
+          "startedAt": "2026-08-29T08:32:17.549Z"
         },
         {
           "caseId": "truefoundry/trueforge#417",
-          "command": "cd /tmp/verdict-source && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
-          "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
-          "conditionId": "daytona-stalled-endpoint",
-          "durationMs": 1001,
-          "environment": {
-            "arch": "x64",
-            "node": "v22.14.0",
-            "observationBoundaryMs": "1000",
-            "package": "@truefoundry/trueforge-core@0.1.4",
-            "platform": "linux",
-            "providerClass": "DaytonaSandboxProvider",
-            "providerModule": "@truefoundry/trueforge-core/core",
-            "providerTimeoutMs": "100",
-            "sourceManifestId": "trueforge-417-v1"
-          },
-          "exitCode": 124,
-          "outcome": "FAIL_MATCH",
-          "outputExcerpt": "POST /snapshots observed; provider call remained pending for 1000 ms",
-          "phase": "matrix",
-          "runId": "stalled-04",
-          "schemaVersion": 1,
-          "signatureMatched": true,
-          "startedAt": "2026-08-29T08:04:06.131Z"
-        },
-        {
-          "caseId": "truefoundry/trueforge#417",
-          "command": "cd /tmp/verdict-source && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
-          "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
-          "conditionId": "daytona-stalled-endpoint",
-          "durationMs": 1001,
-          "environment": {
-            "arch": "x64",
-            "node": "v22.14.0",
-            "observationBoundaryMs": "1000",
-            "package": "@truefoundry/trueforge-core@0.1.4",
-            "platform": "linux",
-            "providerClass": "DaytonaSandboxProvider",
-            "providerModule": "@truefoundry/trueforge-core/core",
-            "providerTimeoutMs": "100",
-            "sourceManifestId": "trueforge-417-v1"
-          },
-          "exitCode": 124,
-          "outcome": "FAIL_MATCH",
-          "outputExcerpt": "POST /snapshots observed; provider call remained pending for 1000 ms",
-          "phase": "matrix",
-          "runId": "stalled-05",
-          "schemaVersion": 1,
-          "signatureMatched": true,
-          "startedAt": "2026-08-29T08:04:07.134Z"
-        },
-        {
-          "caseId": "truefoundry/trueforge#417",
-          "command": "cd /tmp/verdict-source && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
-          "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
-          "conditionId": "daytona-stalled-endpoint",
-          "durationMs": 1002,
-          "environment": {
-            "arch": "x64",
-            "node": "v22.14.0",
-            "observationBoundaryMs": "1000",
-            "package": "@truefoundry/trueforge-core@0.1.4",
-            "platform": "linux",
-            "providerClass": "DaytonaSandboxProvider",
-            "providerModule": "@truefoundry/trueforge-core/core",
-            "providerTimeoutMs": "100",
-            "sourceManifestId": "trueforge-417-v1"
-          },
-          "exitCode": 124,
-          "outcome": "FAIL_MATCH",
-          "outputExcerpt": "POST /snapshots observed; provider call remained pending for 1000 ms",
-          "phase": "matrix",
-          "runId": "stalled-06",
-          "schemaVersion": 1,
-          "signatureMatched": true,
-          "startedAt": "2026-08-29T08:04:08.136Z"
-        },
-        {
-          "caseId": "truefoundry/trueforge#417",
-          "command": "cd /tmp/verdict-source && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
-          "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
-          "conditionId": "daytona-stalled-endpoint",
-          "durationMs": 1002,
-          "environment": {
-            "arch": "x64",
-            "node": "v22.14.0",
-            "observationBoundaryMs": "1000",
-            "package": "@truefoundry/trueforge-core@0.1.4",
-            "platform": "linux",
-            "providerClass": "DaytonaSandboxProvider",
-            "providerModule": "@truefoundry/trueforge-core/core",
-            "providerTimeoutMs": "100",
-            "sourceManifestId": "trueforge-417-v1"
-          },
-          "exitCode": 124,
-          "outcome": "FAIL_MATCH",
-          "outputExcerpt": "POST /snapshots observed; provider call remained pending for 1000 ms",
-          "phase": "matrix",
-          "runId": "stalled-07",
-          "schemaVersion": 1,
-          "signatureMatched": true,
-          "startedAt": "2026-08-29T08:04:09.139Z"
-        },
-        {
-          "caseId": "truefoundry/trueforge#417",
-          "command": "cd /tmp/verdict-source && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
+          "command": "cd /tmp/verdict-source && printf '%s  %s\\n' 'f9962816270aa063020bc616d1d984ff65996f929324ec17ddc78f906894bb06' '/tmp/verdict-source/verdict-reproduction.mjs' | sha256sum -c - && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
           "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
           "conditionId": "daytona-stalled-endpoint",
           "durationMs": 1000,
@@ -211,44 +124,22 @@
             "providerTimeoutMs": "100",
             "sourceManifestId": "trueforge-417-v1"
           },
-          "exitCode": 124,
-          "outcome": "FAIL_MATCH",
-          "outputExcerpt": "POST /snapshots observed; provider call remained pending for 1000 ms",
-          "phase": "matrix",
-          "runId": "stalled-08",
-          "schemaVersion": 1,
-          "signatureMatched": true,
-          "startedAt": "2026-08-29T08:04:10.142Z"
-        },
-        {
-          "caseId": "truefoundry/trueforge#417",
-          "command": "cd /tmp/verdict-source && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
-          "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
-          "conditionId": "daytona-stalled-endpoint",
-          "durationMs": 1002,
-          "environment": {
-            "arch": "x64",
-            "node": "v22.14.0",
-            "observationBoundaryMs": "1000",
-            "package": "@truefoundry/trueforge-core@0.1.4",
-            "platform": "linux",
-            "providerClass": "DaytonaSandboxProvider",
-            "providerModule": "@truefoundry/trueforge-core/core",
-            "providerTimeoutMs": "100",
-            "sourceManifestId": "trueforge-417-v1"
+          "exitCode": null,
+          "observation": {
+            "boundaryMs": 1000,
+            "state": "PENDING_AT_BOUNDARY"
           },
-          "exitCode": 124,
           "outcome": "FAIL_MATCH",
           "outputExcerpt": "POST /snapshots observed; provider call remained pending for 1000 ms",
           "phase": "matrix",
-          "runId": "stalled-09",
+          "runId": "stalled-04",
           "schemaVersion": 1,
           "signatureMatched": true,
-          "startedAt": "2026-08-29T08:04:11.144Z"
+          "startedAt": "2026-08-29T08:32:18.551Z"
         },
         {
           "caseId": "truefoundry/trueforge#417",
-          "command": "cd /tmp/verdict-source && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
+          "command": "cd /tmp/verdict-source && printf '%s  %s\\n' 'f9962816270aa063020bc616d1d984ff65996f929324ec17ddc78f906894bb06' '/tmp/verdict-source/verdict-reproduction.mjs' | sha256sum -c - && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
           "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
           "conditionId": "daytona-stalled-endpoint",
           "durationMs": 1001,
@@ -263,14 +154,168 @@
             "providerTimeoutMs": "100",
             "sourceManifestId": "trueforge-417-v1"
           },
-          "exitCode": 124,
+          "exitCode": null,
+          "observation": {
+            "boundaryMs": 1000,
+            "state": "PENDING_AT_BOUNDARY"
+          },
+          "outcome": "FAIL_MATCH",
+          "outputExcerpt": "POST /snapshots observed; provider call remained pending for 1000 ms",
+          "phase": "matrix",
+          "runId": "stalled-05",
+          "schemaVersion": 1,
+          "signatureMatched": true,
+          "startedAt": "2026-08-29T08:32:19.552Z"
+        },
+        {
+          "caseId": "truefoundry/trueforge#417",
+          "command": "cd /tmp/verdict-source && printf '%s  %s\\n' 'f9962816270aa063020bc616d1d984ff65996f929324ec17ddc78f906894bb06' '/tmp/verdict-source/verdict-reproduction.mjs' | sha256sum -c - && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
+          "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
+          "conditionId": "daytona-stalled-endpoint",
+          "durationMs": 1001,
+          "environment": {
+            "arch": "x64",
+            "node": "v22.14.0",
+            "observationBoundaryMs": "1000",
+            "package": "@truefoundry/trueforge-core@0.1.4",
+            "platform": "linux",
+            "providerClass": "DaytonaSandboxProvider",
+            "providerModule": "@truefoundry/trueforge-core/core",
+            "providerTimeoutMs": "100",
+            "sourceManifestId": "trueforge-417-v1"
+          },
+          "exitCode": null,
+          "observation": {
+            "boundaryMs": 1000,
+            "state": "PENDING_AT_BOUNDARY"
+          },
+          "outcome": "FAIL_MATCH",
+          "outputExcerpt": "POST /snapshots observed; provider call remained pending for 1000 ms",
+          "phase": "matrix",
+          "runId": "stalled-06",
+          "schemaVersion": 1,
+          "signatureMatched": true,
+          "startedAt": "2026-08-29T08:32:20.554Z"
+        },
+        {
+          "caseId": "truefoundry/trueforge#417",
+          "command": "cd /tmp/verdict-source && printf '%s  %s\\n' 'f9962816270aa063020bc616d1d984ff65996f929324ec17ddc78f906894bb06' '/tmp/verdict-source/verdict-reproduction.mjs' | sha256sum -c - && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
+          "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
+          "conditionId": "daytona-stalled-endpoint",
+          "durationMs": 1002,
+          "environment": {
+            "arch": "x64",
+            "node": "v22.14.0",
+            "observationBoundaryMs": "1000",
+            "package": "@truefoundry/trueforge-core@0.1.4",
+            "platform": "linux",
+            "providerClass": "DaytonaSandboxProvider",
+            "providerModule": "@truefoundry/trueforge-core/core",
+            "providerTimeoutMs": "100",
+            "sourceManifestId": "trueforge-417-v1"
+          },
+          "exitCode": null,
+          "observation": {
+            "boundaryMs": 1000,
+            "state": "PENDING_AT_BOUNDARY"
+          },
+          "outcome": "FAIL_MATCH",
+          "outputExcerpt": "POST /snapshots observed; provider call remained pending for 1000 ms",
+          "phase": "matrix",
+          "runId": "stalled-07",
+          "schemaVersion": 1,
+          "signatureMatched": true,
+          "startedAt": "2026-08-29T08:32:21.556Z"
+        },
+        {
+          "caseId": "truefoundry/trueforge#417",
+          "command": "cd /tmp/verdict-source && printf '%s  %s\\n' 'f9962816270aa063020bc616d1d984ff65996f929324ec17ddc78f906894bb06' '/tmp/verdict-source/verdict-reproduction.mjs' | sha256sum -c - && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
+          "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
+          "conditionId": "daytona-stalled-endpoint",
+          "durationMs": 1001,
+          "environment": {
+            "arch": "x64",
+            "node": "v22.14.0",
+            "observationBoundaryMs": "1000",
+            "package": "@truefoundry/trueforge-core@0.1.4",
+            "platform": "linux",
+            "providerClass": "DaytonaSandboxProvider",
+            "providerModule": "@truefoundry/trueforge-core/core",
+            "providerTimeoutMs": "100",
+            "sourceManifestId": "trueforge-417-v1"
+          },
+          "exitCode": null,
+          "observation": {
+            "boundaryMs": 1000,
+            "state": "PENDING_AT_BOUNDARY"
+          },
+          "outcome": "FAIL_MATCH",
+          "outputExcerpt": "POST /snapshots observed; provider call remained pending for 1000 ms",
+          "phase": "matrix",
+          "runId": "stalled-08",
+          "schemaVersion": 1,
+          "signatureMatched": true,
+          "startedAt": "2026-08-29T08:32:22.558Z"
+        },
+        {
+          "caseId": "truefoundry/trueforge#417",
+          "command": "cd /tmp/verdict-source && printf '%s  %s\\n' 'f9962816270aa063020bc616d1d984ff65996f929324ec17ddc78f906894bb06' '/tmp/verdict-source/verdict-reproduction.mjs' | sha256sum -c - && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
+          "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
+          "conditionId": "daytona-stalled-endpoint",
+          "durationMs": 1002,
+          "environment": {
+            "arch": "x64",
+            "node": "v22.14.0",
+            "observationBoundaryMs": "1000",
+            "package": "@truefoundry/trueforge-core@0.1.4",
+            "platform": "linux",
+            "providerClass": "DaytonaSandboxProvider",
+            "providerModule": "@truefoundry/trueforge-core/core",
+            "providerTimeoutMs": "100",
+            "sourceManifestId": "trueforge-417-v1"
+          },
+          "exitCode": null,
+          "observation": {
+            "boundaryMs": 1000,
+            "state": "PENDING_AT_BOUNDARY"
+          },
+          "outcome": "FAIL_MATCH",
+          "outputExcerpt": "POST /snapshots observed; provider call remained pending for 1000 ms",
+          "phase": "matrix",
+          "runId": "stalled-09",
+          "schemaVersion": 1,
+          "signatureMatched": true,
+          "startedAt": "2026-08-29T08:32:23.561Z"
+        },
+        {
+          "caseId": "truefoundry/trueforge#417",
+          "command": "cd /tmp/verdict-source && printf '%s  %s\\n' 'f9962816270aa063020bc616d1d984ff65996f929324ec17ddc78f906894bb06' '/tmp/verdict-source/verdict-reproduction.mjs' | sha256sum -c - && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
+          "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
+          "conditionId": "daytona-stalled-endpoint",
+          "durationMs": 1000,
+          "environment": {
+            "arch": "x64",
+            "node": "v22.14.0",
+            "observationBoundaryMs": "1000",
+            "package": "@truefoundry/trueforge-core@0.1.4",
+            "platform": "linux",
+            "providerClass": "DaytonaSandboxProvider",
+            "providerModule": "@truefoundry/trueforge-core/core",
+            "providerTimeoutMs": "100",
+            "sourceManifestId": "trueforge-417-v1"
+          },
+          "exitCode": null,
+          "observation": {
+            "boundaryMs": 1000,
+            "state": "PENDING_AT_BOUNDARY"
+          },
           "outcome": "FAIL_MATCH",
           "outputExcerpt": "POST /snapshots observed; provider call remained pending for 1000 ms",
           "phase": "matrix",
           "runId": "stalled-10",
           "schemaVersion": 1,
           "signatureMatched": true,
-          "startedAt": "2026-08-29T08:04:12.148Z"
+          "startedAt": "2026-08-29T08:32:24.565Z"
         }
       ]
     },
@@ -286,10 +331,10 @@
       "records": [
         {
           "caseId": "truefoundry/trueforge#417",
-          "command": "cd /tmp/verdict-source && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
+          "command": "cd /tmp/verdict-source && printf '%s  %s\\n' 'f9962816270aa063020bc616d1d984ff65996f929324ec17ddc78f906894bb06' '/tmp/verdict-source/verdict-reproduction.mjs' | sha256sum -c - && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
           "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
           "conditionId": "daytona-responsive-endpoint",
-          "durationMs": 8,
+          "durationMs": 6,
           "environment": {
             "arch": "x64",
             "node": "v22.14.0",
@@ -308,11 +353,11 @@
           "runId": "responsive-01",
           "schemaVersion": 1,
           "signatureMatched": false,
-          "startedAt": "2026-08-29T08:04:13.150Z"
+          "startedAt": "2026-08-29T08:32:25.566Z"
         },
         {
           "caseId": "truefoundry/trueforge#417",
-          "command": "cd /tmp/verdict-source && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
+          "command": "cd /tmp/verdict-source && printf '%s  %s\\n' 'f9962816270aa063020bc616d1d984ff65996f929324ec17ddc78f906894bb06' '/tmp/verdict-source/verdict-reproduction.mjs' | sha256sum -c - && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
           "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
           "conditionId": "daytona-responsive-endpoint",
           "durationMs": 2,
@@ -334,14 +379,14 @@
           "runId": "responsive-02",
           "schemaVersion": 1,
           "signatureMatched": false,
-          "startedAt": "2026-08-29T08:04:13.159Z"
+          "startedAt": "2026-08-29T08:32:25.572Z"
         },
         {
           "caseId": "truefoundry/trueforge#417",
-          "command": "cd /tmp/verdict-source && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
+          "command": "cd /tmp/verdict-source && printf '%s  %s\\n' 'f9962816270aa063020bc616d1d984ff65996f929324ec17ddc78f906894bb06' '/tmp/verdict-source/verdict-reproduction.mjs' | sha256sum -c - && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
           "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
           "conditionId": "daytona-responsive-endpoint",
-          "durationMs": 2,
+          "durationMs": 1,
           "environment": {
             "arch": "x64",
             "node": "v22.14.0",
@@ -360,14 +405,14 @@
           "runId": "responsive-03",
           "schemaVersion": 1,
           "signatureMatched": false,
-          "startedAt": "2026-08-29T08:04:13.161Z"
+          "startedAt": "2026-08-29T08:32:25.574Z"
         },
         {
           "caseId": "truefoundry/trueforge#417",
-          "command": "cd /tmp/verdict-source && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
+          "command": "cd /tmp/verdict-source && printf '%s  %s\\n' 'f9962816270aa063020bc616d1d984ff65996f929324ec17ddc78f906894bb06' '/tmp/verdict-source/verdict-reproduction.mjs' | sha256sum -c - && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
           "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
           "conditionId": "daytona-responsive-endpoint",
-          "durationMs": 2,
+          "durationMs": 1,
           "environment": {
             "arch": "x64",
             "node": "v22.14.0",
@@ -386,14 +431,14 @@
           "runId": "responsive-04",
           "schemaVersion": 1,
           "signatureMatched": false,
-          "startedAt": "2026-08-29T08:04:13.164Z"
+          "startedAt": "2026-08-29T08:32:25.575Z"
         },
         {
           "caseId": "truefoundry/trueforge#417",
-          "command": "cd /tmp/verdict-source && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
+          "command": "cd /tmp/verdict-source && printf '%s  %s\\n' 'f9962816270aa063020bc616d1d984ff65996f929324ec17ddc78f906894bb06' '/tmp/verdict-source/verdict-reproduction.mjs' | sha256sum -c - && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
           "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
           "conditionId": "daytona-responsive-endpoint",
-          "durationMs": 2,
+          "durationMs": 1,
           "environment": {
             "arch": "x64",
             "node": "v22.14.0",
@@ -412,14 +457,14 @@
           "runId": "responsive-05",
           "schemaVersion": 1,
           "signatureMatched": false,
-          "startedAt": "2026-08-29T08:04:13.166Z"
+          "startedAt": "2026-08-29T08:32:25.576Z"
         },
         {
           "caseId": "truefoundry/trueforge#417",
-          "command": "cd /tmp/verdict-source && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
+          "command": "cd /tmp/verdict-source && printf '%s  %s\\n' 'f9962816270aa063020bc616d1d984ff65996f929324ec17ddc78f906894bb06' '/tmp/verdict-source/verdict-reproduction.mjs' | sha256sum -c - && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
           "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
           "conditionId": "daytona-responsive-endpoint",
-          "durationMs": 2,
+          "durationMs": 1,
           "environment": {
             "arch": "x64",
             "node": "v22.14.0",
@@ -438,14 +483,14 @@
           "runId": "responsive-06",
           "schemaVersion": 1,
           "signatureMatched": false,
-          "startedAt": "2026-08-29T08:04:13.168Z"
+          "startedAt": "2026-08-29T08:32:25.577Z"
         },
         {
           "caseId": "truefoundry/trueforge#417",
-          "command": "cd /tmp/verdict-source && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
+          "command": "cd /tmp/verdict-source && printf '%s  %s\\n' 'f9962816270aa063020bc616d1d984ff65996f929324ec17ddc78f906894bb06' '/tmp/verdict-source/verdict-reproduction.mjs' | sha256sum -c - && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
           "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
           "conditionId": "daytona-responsive-endpoint",
-          "durationMs": 2,
+          "durationMs": 1,
           "environment": {
             "arch": "x64",
             "node": "v22.14.0",
@@ -464,14 +509,14 @@
           "runId": "responsive-07",
           "schemaVersion": 1,
           "signatureMatched": false,
-          "startedAt": "2026-08-29T08:04:13.170Z"
+          "startedAt": "2026-08-29T08:32:25.579Z"
         },
         {
           "caseId": "truefoundry/trueforge#417",
-          "command": "cd /tmp/verdict-source && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
+          "command": "cd /tmp/verdict-source && printf '%s  %s\\n' 'f9962816270aa063020bc616d1d984ff65996f929324ec17ddc78f906894bb06' '/tmp/verdict-source/verdict-reproduction.mjs' | sha256sum -c - && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
           "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
           "conditionId": "daytona-responsive-endpoint",
-          "durationMs": 2,
+          "durationMs": 1,
           "environment": {
             "arch": "x64",
             "node": "v22.14.0",
@@ -490,14 +535,14 @@
           "runId": "responsive-08",
           "schemaVersion": 1,
           "signatureMatched": false,
-          "startedAt": "2026-08-29T08:04:13.172Z"
+          "startedAt": "2026-08-29T08:32:25.580Z"
         },
         {
           "caseId": "truefoundry/trueforge#417",
-          "command": "cd /tmp/verdict-source && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
+          "command": "cd /tmp/verdict-source && printf '%s  %s\\n' 'f9962816270aa063020bc616d1d984ff65996f929324ec17ddc78f906894bb06' '/tmp/verdict-source/verdict-reproduction.mjs' | sha256sum -c - && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
           "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
           "conditionId": "daytona-responsive-endpoint",
-          "durationMs": 2,
+          "durationMs": 1,
           "environment": {
             "arch": "x64",
             "node": "v22.14.0",
@@ -516,14 +561,14 @@
           "runId": "responsive-09",
           "schemaVersion": 1,
           "signatureMatched": false,
-          "startedAt": "2026-08-29T08:04:13.174Z"
+          "startedAt": "2026-08-29T08:32:25.581Z"
         },
         {
           "caseId": "truefoundry/trueforge#417",
-          "command": "cd /tmp/verdict-source && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
+          "command": "cd /tmp/verdict-source && printf '%s  %s\\n' 'f9962816270aa063020bc616d1d984ff65996f929324ec17ddc78f906894bb06' '/tmp/verdict-source/verdict-reproduction.mjs' | sha256sum -c - && /opt/verdict-node/bin/node /tmp/verdict-source/verdict-reproduction.mjs",
           "commitSha": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
           "conditionId": "daytona-responsive-endpoint",
-          "durationMs": 8,
+          "durationMs": 1,
           "environment": {
             "arch": "x64",
             "node": "v22.14.0",
@@ -542,19 +587,19 @@
           "runId": "responsive-10",
           "schemaVersion": 1,
           "signatureMatched": false,
-          "startedAt": "2026-08-29T08:04:13.176Z"
+          "startedAt": "2026-08-29T08:32:25.582Z"
         }
       ]
     }
   ],
-  "hunterThreadId": "467c1c09-026f-4a13-ac90-26bfdb122e15",
+  "hunterThreadId": "8ed4cc99-7c90-48df-bc39-f237c55761af",
   "integrity": {
     "algorithm": "sha256",
-    "evidenceSha256": "134aab490570a8b47db6009cbcb85d57e24769d42bbce96a3b05681e2315301f"
+    "evidenceSha256": "a8bb5dd22e083782bd7782fccb0a1343b59fc77ea8525b6358fecc9b5b8baffa"
   },
   "kind": "verdict.recorded-reproduction",
-  "schemaVersion": 1,
-  "sessionId": "01m168maxx3p4qgtwmj3cd3bjz",
+  "schemaVersion": 2,
+  "sessionId": "01m16a555jy0b09pp9ze5296ng",
   "source": {
     "artifact": "@truefoundry/trueforge-core@0.1.4",
     "issueCommit": "506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4",
@@ -564,8 +609,8 @@
     "sourceBlobSha1": "1fba52e1673e560bce4aa897cb88000dfee75652",
     "sourceManifestId": "trueforge-417-v1"
   },
-  "toolCallId": "chatcmpl-tool-889dd3a665cd49b7",
-  "toolResponseEventId": "01m168rfb9ag308x66sbtqpv99",
-  "turnId": "01m168may82j9yybtv20mqch74.local",
+  "toolCallId": "chatcmpl-tool-bccfcda568f40b31",
+  "toolResponseEventId": "01m16ac450t3g3ct9btv6drttg",
+  "turnId": "01m16a555wdz4jbq9fpqtek7k0.local",
   "verdict": "REPRODUCED"
 }

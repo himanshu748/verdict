@@ -22,9 +22,11 @@ import {
 } from "./session.js";
 import {
   captureRecordedReproduction,
+  captureValidatedSourceBootstrap,
   writeRecordedReproduction,
   type RecordedReproduction,
   type RecordedReproductionWriteResult,
+  type ValidatedSourceBootstrap,
 } from "./reproduction-evidence.js";
 import { sanitizeTerminalField } from "./terminal.js";
 import { startWithTransientProviderRetry } from "./transient-retry.js";
@@ -85,14 +87,27 @@ const client = createTrueForgeClientFromEnv();
 const reproductionCaptureState: { current: RecordedReproduction | null } = {
   current: null,
 };
+const bootstrapCaptureState: { current: ValidatedSourceBootstrap | null } = {
+  current: null,
+};
 const onProjection = (
   projection: VerdictEventProjection,
   event: TrueForgeApi.TurnStreamingEvent,
 ) => {
+  const bootstrap = captureValidatedSourceBootstrap(
+    projection,
+    event,
+    config.investigationTarget,
+  );
+  if (bootstrap) {
+    bootstrapCaptureState.current = bootstrap;
+    console.log("[bootstrap:validated] trusted source closure installed");
+  }
   const captured = captureRecordedReproduction(
     projection,
     event,
     config.investigationTarget,
+    bootstrapCaptureState.current,
   );
   if (captured) {
     // A transient Hunter retry can execute the same pinned runner again. Each

@@ -90,6 +90,38 @@ describe("runRecordSchema", () => {
   ])("accepts internally consistent $outcome records", (value) => {
     expect(runRecordSchema.safeParse(value).success).toBe(true);
   });
+
+  it("represents a matched pending call without inventing a process exit", () => {
+    const pending = {
+      ...record(0, "FAIL_MATCH"),
+      exitCode: null,
+      observation: {
+        boundaryMs: 1_000,
+        state: "PENDING_AT_BOUNDARY",
+      },
+    };
+
+    expect(runRecordSchema.safeParse(pending).success).toBe(true);
+  });
+
+  it.each([
+    {
+      label: "pending matched call without its observation marker",
+      value: { ...record(0, "FAIL_MATCH"), exitCode: null },
+    },
+    {
+      label: "exited matched call with a pending observation marker",
+      value: {
+        ...record(0, "FAIL_MATCH"),
+        observation: {
+          boundaryMs: 1_000,
+          state: "PENDING_AT_BOUNDARY",
+        },
+      },
+    },
+  ])("rejects a contradictory $label", ({ value }) => {
+    expect(runRecordSchema.safeParse(value).success).toBe(false);
+  });
 });
 
 describe("classifyReproduction", () => {

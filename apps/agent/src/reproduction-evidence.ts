@@ -15,6 +15,7 @@ import {
   type RunRecord,
 } from "@verdict/protocol";
 import {
+  buildSourceBootstrapCommand,
   VERDICT_NODE_BINARY,
   VERDICT_REPRODUCTION_RUNNER,
   VERDICT_SOURCE_DIR,
@@ -79,12 +80,17 @@ export interface RecordedReproductionCondition {
 }
 
 export interface RecordedReproduction {
+  bootstrap: {
+    command: string;
+    toolCallId: string;
+    toolResponseEventId: string;
+  };
   capturedAt: string;
   conditions: RecordedReproductionCondition[];
   command: string;
   hunterThreadId: string;
   kind: typeof RECORDED_KIND;
-  schemaVersion: 1;
+  schemaVersion: 2;
   sessionId: string;
   source: {
     artifact: string;
@@ -104,6 +110,15 @@ export interface RecordedReproduction {
 export interface RecordedReproductionWriteResult {
   digestSha256: string;
   path: string;
+}
+
+export interface ValidatedSourceBootstrap {
+  command: string;
+  hunterThreadId: string;
+  sessionId: string;
+  toolCallId: string;
+  toolResponseEventId: string;
+  turnId: string;
 }
 
 function requirePositiveInteger(value: number, name: string): number {
@@ -143,8 +158,12 @@ export function buildReproductionRunnerSource(
 }
 
 export function buildTrustedReproductionCommand(manifestId: string): string {
-  resolveTrustedSourceManifest(manifestId);
-  return `cd ${VERDICT_SOURCE_DIR} && ${VERDICT_NODE_BINARY} ${VERDICT_REPRODUCTION_RUNNER}`;
+  const manifest = resolveTrustedSourceManifest(manifestId);
+  return [
+    `cd ${VERDICT_SOURCE_DIR}`,
+    `printf '%s  %s\\n' '${manifest.reproductionRunner.sha256}' '${VERDICT_REPRODUCTION_RUNNER}' | sha256sum -c -`,
+    `${VERDICT_NODE_BINARY} ${VERDICT_REPRODUCTION_RUNNER}`,
+  ].join(" && ");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -351,25 +370,38 @@ function parseRunnerEnvelope(
   };
 }
 
-function parseSandboxResult(content: string, manifestId: string): RunnerEnvelope {
+interface SuccessfulSandboxResponse {
+  result: string;
+}
+
+function parseSuccessfulSandboxResponse(
+  content: string,
+  label: "bootstrap" | "reproduction",
+): SuccessfulSandboxResponse {
   const outer = requireRecord(
     parseJson(content, "Sandbox tool response"),
     "Sandbox tool response",
   );
   if (outer["success"] !== true) {
-    throw new Error("The trusted reproduction command did not succeed.");
+    throw new Error(`The trusted ${label} command did not succeed.`);
   }
   const response = requireRecord(outer["response"], "Sandbox response");
   if (response["exitCode"] !== 0) {
-    throw new Error("The trusted reproduction command exited non-zero.");
+    throw new Error(`The trusted ${label} command exited non-zero.`);
   }
+  return {
+    result: requireString(response["result"], "Sandbox result"),
+  };
+}
+
+function parseSandboxResult(content: string, manifestId: string): RunnerEnvelope {
   return parseRunnerEnvelope(
-    requireString(response["result"], "Sandbox result"),
+    parseSuccessfulSandboxResponse(content, "reproduction").result,
     manifestId,
   );
 }
 
-function parseExecCommand(argumentsJson: string): string | null {
+function parseExecCommandCandidate(argumentsJson: string): string | null {
   let parsed: unknown;
   try {
     parsed = JSON.parse(argumentsJson) as unknown;
@@ -379,6 +411,184 @@ function parseExecCommand(argumentsJson: string): string | null {
   return isRecord(parsed) && typeof parsed["command"] === "string"
     ? parsed["command"]
     : null;
+}
+
+function requireSandboxExecCommand(
+  toolCall: VerdictEventProjection["modelToolCalls"][number],
+): string {
+  if (
+    toolCall.functionName !== "exec" ||
+    toolCall.toolInfo?.type !== "truefoundry-system" ||
+    toolCall.toolInfo.name !== "exec"
+  ) {
+    throw new Error("Trusted reproduction requires the TrueForge sandbox exec tool.");
+  }
+  const argumentsRecord = requireRecord(
+    parseJson(toolCall.argumentsJson, "Sandbox exec arguments"),
+    "Sandbox exec arguments",
+  );
+  if ("cwd" in argumentsRecord || "env" in argumentsRecord) {
+    throw new Error("Trusted sandbox exec must not set cwd or env.");
+  }
+  const unsupported = Object.keys(argumentsRecord).filter(
+    (key) => key !== "command" && key !== "intent",
+  );
+  if (unsupported.length > 0) {
+    throw new Error("Trusted sandbox exec contains unsupported arguments.");
+  }
+  requireString(argumentsRecord["intent"], "Sandbox exec intent");
+  return requireString(argumentsRecord["command"], "Sandbox exec command");
+}
+
+function findResponseToolCall(
+  projection: VerdictEventProjection,
+  event: TrueForgeApi.ToolResponseEvent,
+): VerdictEventProjection["modelToolCalls"][number] | null {
+  const matches = projection.modelToolCalls.filter(
+    (toolCall) =>
+      toolCall.threadId === event.threadId &&
+      toolCall.toolCallId === event.toolCallId,
+  );
+  return matches.length === 1 ? matches[0]! : null;
+}
+
+function assertTargetMatchesManifest(
+  target: InvestigationTarget,
+): ReturnType<typeof resolveTrustedSourceManifest> {
+  const manifest = resolveTrustedSourceManifest(target.sourceManifestId);
+  if (
+    target.repository !== manifest.repository ||
+    target.issueNumber !== manifest.issueNumber
+  ) {
+    throw new Error("Reproduction target must match the trusted source manifest.");
+  }
+  return manifest;
+}
+
+function requireHunter(
+  projection: VerdictEventProjection,
+  threadId: string,
+): boolean {
+  return projection.threads.some(
+    (thread) => thread.threadId === threadId && thread.name === "Hunter",
+  );
+}
+
+function parseBootstrapResult(
+  content: string,
+  manifest: ReturnType<typeof resolveTrustedSourceManifest>,
+): void {
+  const { result } = parseSuccessfulSandboxResponse(content, "bootstrap");
+  const lines = result.trim().split(/\r?\n/).filter(Boolean);
+  let verified: Record<string, unknown> | null = null;
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    try {
+      const candidate = JSON.parse(lines[index]!) as unknown;
+      if (isRecord(candidate) && candidate["status"] === "bootstrap-verified") {
+        verified = candidate;
+        break;
+      }
+    } catch {
+      // Checksum tools and npm may emit bounded diagnostics around the JSON line.
+    }
+  }
+  if (!verified) {
+    throw new Error("The trusted bootstrap did not emit its verified record.");
+  }
+  if (
+    verified["manifestId"] !== manifest.id ||
+    verified["package"] !== manifest.artifact.spec ||
+    verified["provenanceCommit"] !== manifest.artifact.provenanceCommit ||
+    verified["sourceBlob"] !== manifest.source.blobSha1
+  ) {
+    throw new Error("The trusted bootstrap record does not match the source manifest.");
+  }
+}
+
+export function captureValidatedSourceBootstrap(
+  projection: VerdictEventProjection,
+  event: TrueForgeApi.TurnStreamingEvent,
+  target: InvestigationTarget,
+): ValidatedSourceBootstrap | null {
+  if (event.type !== "tool.response" || !requireHunter(projection, event.threadId)) {
+    return null;
+  }
+  const manifest = assertTargetMatchesManifest(target);
+  const modelToolCall = findResponseToolCall(projection, event);
+  if (!modelToolCall) {
+    return null;
+  }
+  const expectedCommand = buildSourceBootstrapCommand(manifest.id);
+  if (parseExecCommandCandidate(modelToolCall.argumentsJson) !== expectedCommand) {
+    return null;
+  }
+  if (requireSandboxExecCommand(modelToolCall) !== expectedCommand) {
+    throw new Error("The trusted bootstrap command changed before execution.");
+  }
+  const execCalls = projection.modelToolCalls.filter(
+    (toolCall) =>
+      toolCall.functionName === "exec" ||
+      (toolCall.toolInfo?.type === "truefoundry-system" &&
+        toolCall.toolInfo.name === "exec"),
+  );
+  if (
+    execCalls.length !== 1 ||
+    execCalls[0]?.threadId !== event.threadId ||
+    execCalls[0]?.toolCallId !== event.toolCallId
+  ) {
+    throw new Error("Verdict observed an untrusted sandbox exec before bootstrap.");
+  }
+  if (!projection.turnId) {
+    throw new Error("Validated bootstrap requires a TrueForge turn ID.");
+  }
+  parseBootstrapResult(event.content, manifest);
+  return {
+    command: expectedCommand,
+    hunterThreadId: event.threadId,
+    sessionId: projection.sessionId,
+    toolCallId: event.toolCallId,
+    toolResponseEventId: event.id,
+    turnId: projection.turnId,
+  };
+}
+
+function assertTrustedExecutionSequence(
+  projection: VerdictEventProjection,
+  event: TrueForgeApi.ToolResponseEvent,
+  bootstrap: ValidatedSourceBootstrap,
+  bootstrapCommand: string,
+  reproductionCommand: string,
+): void {
+  if (
+    bootstrap.sessionId !== projection.sessionId ||
+    bootstrap.turnId !== projection.turnId ||
+    bootstrap.hunterThreadId !== event.threadId ||
+    bootstrap.command !== bootstrapCommand
+  ) {
+    throw new Error("Reproduction does not follow the successful trusted bootstrap.");
+  }
+  const execCalls = projection.modelToolCalls.filter(
+    (toolCall) =>
+      toolCall.functionName === "exec" ||
+      (toolCall.toolInfo?.type === "truefoundry-system" &&
+        toolCall.toolInfo.name === "exec"),
+  );
+  for (const [index, toolCall] of execCalls.entries()) {
+    const command = requireSandboxExecCommand(toolCall);
+    const expected = index === 0 ? bootstrapCommand : reproductionCommand;
+    if (toolCall.threadId !== event.threadId || command !== expected) {
+      throw new Error("Verdict observed an untrusted sandbox exec in the reproduction chain.");
+    }
+  }
+  const first = execCalls[0];
+  const last = execCalls.at(-1);
+  if (
+    execCalls.length < 2 ||
+    first?.toolCallId !== bootstrap.toolCallId ||
+    last?.toolCallId !== event.toolCallId
+  ) {
+    throw new Error("Reproduction does not have a complete trusted exec sequence.");
+  }
 }
 
 function toRunRecords(
@@ -403,7 +613,15 @@ function toRunRecords(
     outputExcerpt: observation.outputExcerpt,
     outcome: stalled ? "FAIL_MATCH" : "PASS",
     signatureMatched: stalled,
-    exitCode: stalled ? 124 : 0,
+    ...(stalled
+      ? {
+          exitCode: null,
+          observation: {
+            boundaryMs: REPRODUCTION_OBSERVATION_BOUNDARY_MS,
+            state: "PENDING_AT_BOUNDARY" as const,
+          },
+        }
+      : { exitCode: 0 }),
   } as RunRecord));
 }
 
@@ -411,39 +629,40 @@ export function captureRecordedReproduction(
   projection: VerdictEventProjection,
   event: TrueForgeApi.TurnStreamingEvent,
   target: InvestigationTarget,
+  bootstrap: ValidatedSourceBootstrap | null,
 ): RecordedReproduction | null {
   if (event.type !== "tool.response") {
     return null;
   }
-  const manifest = resolveTrustedSourceManifest(target.sourceManifestId);
-  if (
-    target.repository !== manifest.repository ||
-    target.issueNumber !== manifest.issueNumber
-  ) {
-    throw new Error("Reproduction target must match the trusted source manifest.");
-  }
-  const hunter = projection.threads.find(
-    (thread) => thread.threadId === event.threadId && thread.name === "Hunter",
-  );
-  if (!hunter) {
+  const manifest = assertTargetMatchesManifest(target);
+  if (!requireHunter(projection, event.threadId)) {
     return null;
   }
-  const modelToolCall = projection.modelToolCalls.find(
-    (toolCall) =>
-      toolCall.threadId === event.threadId &&
-      toolCall.toolCallId === event.toolCallId,
-  );
-  if (!modelToolCall || modelToolCall.functionName !== "exec") {
+  const modelToolCall = findResponseToolCall(projection, event);
+  if (!modelToolCall) {
     return null;
   }
-  const command = parseExecCommand(modelToolCall.argumentsJson);
   const trustedCommand = buildTrustedReproductionCommand(manifest.id);
-  if (command !== trustedCommand) {
+  if (parseExecCommandCandidate(modelToolCall.argumentsJson) !== trustedCommand) {
     return null;
+  }
+  if (requireSandboxExecCommand(modelToolCall) !== trustedCommand) {
+    throw new Error("The trusted reproduction command changed before execution.");
+  }
+  if (!bootstrap) {
+    throw new Error("Reproduction requires a successful trusted bootstrap.");
   }
   if (!projection.turnId) {
     throw new Error("Recorded reproduction requires a TrueForge turn ID.");
   }
+  const bootstrapCommand = buildSourceBootstrapCommand(manifest.id);
+  assertTrustedExecutionSequence(
+    projection,
+    event,
+    bootstrap,
+    bootstrapCommand,
+    trustedCommand,
+  );
   const envelope = parseSandboxResult(event.content, manifest.id);
   const environment = {
     ...envelope.environment,
@@ -480,12 +699,17 @@ export function captureRecordedReproduction(
     );
   }
   return {
+    bootstrap: {
+      command: bootstrap.command,
+      toolCallId: bootstrap.toolCallId,
+      toolResponseEventId: bootstrap.toolResponseEventId,
+    },
     capturedAt: event.createdAt,
     conditions,
     command: trustedCommand,
     hunterThreadId: event.threadId,
     kind: RECORDED_KIND,
-    schemaVersion: 1,
+    schemaVersion: 2,
     sessionId: projection.sessionId,
     source: {
       artifact: manifest.artifact.spec,

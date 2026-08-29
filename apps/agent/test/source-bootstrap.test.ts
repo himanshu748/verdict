@@ -7,6 +7,7 @@ import {
   VERDICT_REPRODUCTION_DOWNLOAD,
   VERDICT_REPRODUCTION_RUNNER,
 } from "../src/source-bootstrap.js";
+import { buildTrustedReproductionCommand } from "../src/reproduction-evidence.js";
 import { resolveTrustedSourceManifest } from "../src/source-manifest.js";
 
 const manifestId = "trueforge-417-v1";
@@ -81,6 +82,15 @@ describe("trusted source bootstrap", () => {
     );
     expect(runner).not.toContain("DAYTONA_API_KEY");
     expect(runner).not.toContain("GITHUB_TOKEN");
+  });
+
+  it("rechecks the runner digest immediately before every execution", () => {
+    const command = buildTrustedReproductionCommand(manifestId);
+
+    expect(command).toContain(manifest.reproductionRunner.sha256);
+    expect(command).toContain(VERDICT_REPRODUCTION_RUNNER);
+    expect(command).toContain("sha256sum -c -");
+    expect(command).toContain("/opt/verdict-node/bin/node");
   });
 
   it("pins the audited script and every provenance anchor", () => {

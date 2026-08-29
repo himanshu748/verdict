@@ -31,7 +31,7 @@ pnpm test
 pnpm build
 ```
 
-That runs `tsc --noEmit` across the agent and protocol packages, ESLint on the web app, 208 tests and a production Next.js build.
+That runs `tsc --noEmit` across the agent and protocol packages, ESLint on the web app, 217 tests and a production Next.js build.
 
 ## What the demo shows and what it does not
 
@@ -60,9 +60,9 @@ The host accepted two evidence sets:
 - `daytona-stalled-endpoint`: 10 observed requests, 10 calls still pending after the 1,000 ms boundary, `REPRODUCTION_PINNED`
 - `daytona-responsive-endpoint`: 10 observed requests, 10 active responses, `NOT_REPRODUCED`
 
-The immutable record is in [`evidence/trueforge-417/reproduction.json`](evidence/trueforge-417/reproduction.json). It binds the observations to TrueForge session `01m168maxx3p4qgtwmj3cd3bjz`, Hunter thread `467c1c09-026f-4a13-ac90-26bfdb122e15`, issue commit `506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4`, the npm provenance commit and the shared source blob. Its canonical evidence digest is `134aab490570a8b47db6009cbcb85d57e24769d42bbce96a3b05681e2315301f`.
+The immutable record is in [`evidence/trueforge-417/reproduction.json`](evidence/trueforge-417/reproduction.json). It binds the observations to TrueForge session `01m16a555jy0b09pp9ze5296ng`, qualifying Hunter thread `8ed4cc99-7c90-48df-bc39-f237c55761af`, the exact successful bootstrap response, issue commit `506bf5c4d1540fa7cb086f1fb697bbe66d1ea5d4`, the npm provenance commit and the shared source blob. Its canonical evidence digest is `a8bb5dd22e083782bd7782fccb0a1343b59fc77ea8525b6358fecc9b5b8baffa`.
 
-Surgeon completed its bounded history pass. Insurance then reached the real TrueForge approval gate. After an explicit maintainer decision, Verdict dispatched the exact nonce-bound target and independently verified [GitHub Actions run 33242421914](https://github.com/himanshu748/verdict/actions/runs/33242421914), [draft pull request #13](https://github.com/himanshu748/verdict/pull/13) and the proof blob at the PR head. The workflow writes only to `himanshu748/verdict`; the upstream TrueForge issue and repository remain read-only evidence sources.
+Surgeon completed its bounded history pass. Insurance then reached the real TrueForge approval gate. After an explicit maintainer decision, Verdict dispatched the exact nonce-bound target and independently verified [GitHub Actions run 33243548221](https://github.com/himanshu748/verdict/actions/runs/33243548221), [draft pull request #15](https://github.com/himanshu748/verdict/pull/15) and the proof blob at the PR head. The workflow writes only to `himanshu748/verdict`; the upstream TrueForge issue and repository remain read-only evidence sources.
 
 The workflow proof deliberately records `sourceIssueRuntimeReproduced: false`: that workflow verifies the repository integration and publishes a proof document, while the separate immutable artifact above records the provider reproduction. Verdict does not collapse those two claims into one.
 
