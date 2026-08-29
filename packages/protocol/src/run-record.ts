@@ -20,21 +20,37 @@ const nonZeroExitCodeSchema = z.number().int().refine((exitCode) => exitCode !==
   message: "exitCode must be non-zero",
 });
 
-export const runRecordSchema = z.discriminatedUnion("outcome", [
+export const pendingBoundaryObservationSchema = z.object({
+  state: z.literal("PENDING_AT_BOUNDARY"),
+  boundaryMs: z.number().int().positive(),
+});
+
+const noPendingObservationSchema = z.undefined().optional();
+
+export const runRecordSchema = z.union([
   runRecordBaseSchema.extend({
     outcome: z.literal("FAIL_MATCH"),
     signatureMatched: z.literal(true),
     exitCode: nonZeroExitCodeSchema,
+    observation: noPendingObservationSchema,
+  }),
+  runRecordBaseSchema.extend({
+    outcome: z.literal("FAIL_MATCH"),
+    signatureMatched: z.literal(true),
+    exitCode: z.null(),
+    observation: pendingBoundaryObservationSchema,
   }),
   runRecordBaseSchema.extend({
     outcome: z.literal("PASS"),
     signatureMatched: z.literal(false),
     exitCode: z.literal(0),
+    observation: noPendingObservationSchema,
   }),
   runRecordBaseSchema.extend({
     outcome: z.literal("UNRESOLVED"),
     signatureMatched: z.literal(false),
     exitCode: z.union([z.null(), nonZeroExitCodeSchema]),
+    observation: noPendingObservationSchema,
   }),
 ]);
 

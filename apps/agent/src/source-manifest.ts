@@ -23,6 +23,10 @@ export interface TrustedSourceManifest {
     packageLockUrl: string;
   }>;
   readonly repository: string;
+  readonly reproductionRunner: Readonly<{
+    sha256: string;
+    url: string;
+  }>;
   readonly source: Readonly<{
     blobSha1: string;
     fileSha256: string;
@@ -64,6 +68,11 @@ const TRUEFORGE_417_MANIFEST: TrustedSourceManifest = Object.freeze({
       "https://raw.githubusercontent.com/himanshu748/verdict/6de6a98d9b5d4ea08ab60e6a421d9327f6ec0e2f/apps/agent/source-locks/trueforge-core-0.1.4/package-lock.json",
   }),
   repository: "truefoundry/trueforge",
+  reproductionRunner: Object.freeze({
+    sha256:
+      "f9962816270aa063020bc616d1d984ff65996f929324ec17ddc78f906894bb06",
+    url: "https://raw.githubusercontent.com/himanshu748/verdict/4e30e12e033a2f99702733b64618f6b9b4490576/apps/agent/source-locks/trueforge-core-0.1.4/reproduce.mjs",
+  }),
   source: Object.freeze({
     blobSha1: "1fba52e1673e560bce4aa897cb88000dfee75652",
     fileSha256:

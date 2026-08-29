@@ -4,7 +4,10 @@ import { describe, expect, it } from "vitest";
 import {
   buildSourceBootstrapCommand,
   VERDICT_BOOTSTRAP_SCRIPT,
+  VERDICT_REPRODUCTION_DOWNLOAD,
+  VERDICT_REPRODUCTION_RUNNER,
 } from "../src/source-bootstrap.js";
+import { buildTrustedReproductionCommand } from "../src/reproduction-evidence.js";
 import { resolveTrustedSourceManifest } from "../src/source-manifest.js";
 
 const manifestId = "trueforge-417-v1";
@@ -54,14 +57,40 @@ describe("trusted source bootstrap", () => {
 
     expect(command).toContain(manifest.bootstrap.url);
     expect(command).toContain(manifest.bootstrap.sha256);
+    expect(command).toContain(manifest.reproductionRunner.url);
+    expect(command).toContain(manifest.reproductionRunner.sha256);
     expect(command).toContain(VERDICT_BOOTSTRAP_SCRIPT);
+    expect(command).toContain(VERDICT_REPRODUCTION_DOWNLOAD);
+    expect(command).toContain(
+      `install -m 0444 ${VERDICT_REPRODUCTION_DOWNLOAD} ${VERDICT_REPRODUCTION_RUNNER}`,
+    );
     expect(command).toContain("sha256sum -c -");
     expect(command).toContain(`/bin/sh ${VERDICT_BOOTSTRAP_SCRIPT}`);
     expect(command).not.toContain("npm install");
     expect(command).not.toContain("npm pack");
     expect(command).not.toContain("GITHUB_TOKEN");
     expect(command).not.toContain("DAYTONA_API_KEY");
-    expect(command.length).toBeLessThan(1_000);
+    expect(command.length).toBeLessThan(1_500);
+  });
+
+  it("pins the provider reproduction runner beside the audited closure", () => {
+    const runner = readFileSync(new URL("reproduce.mjs", lockRoot), "utf8");
+
+    expect(sha256(runner)).toBe(manifest.reproductionRunner.sha256);
+    expect(manifest.reproductionRunner.url).toBe(
+      "https://raw.githubusercontent.com/himanshu748/verdict/4e30e12e033a2f99702733b64618f6b9b4490576/apps/agent/source-locks/trueforge-core-0.1.4/reproduce.mjs",
+    );
+    expect(runner).not.toContain("DAYTONA_API_KEY");
+    expect(runner).not.toContain("GITHUB_TOKEN");
+  });
+
+  it("rechecks the runner digest immediately before every execution", () => {
+    const command = buildTrustedReproductionCommand(manifestId);
+
+    expect(command).toContain(manifest.reproductionRunner.sha256);
+    expect(command).toContain(VERDICT_REPRODUCTION_RUNNER);
+    expect(command).toContain("sha256sum -c -");
+    expect(command).toContain("/opt/verdict-node/bin/node");
   });
 
   it("pins the audited script and every provenance anchor", () => {

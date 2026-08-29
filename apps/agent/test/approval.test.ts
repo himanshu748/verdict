@@ -1,6 +1,7 @@
 import type { TrueForge, TrueForgeApi } from "@truefoundry/trueforge-sdk";
 import { describe, expect, it } from "vitest";
 import { GITHUB_MCP_NAME } from "../src/policy.js";
+import { buildTrustedReproductionCommand } from "../src/reproduction-evidence.js";
 import {
   approveVerdictWorkflow,
   buildInvestigationMessage,
@@ -613,6 +614,12 @@ describe("trusted investigation handoff", () => {
     );
     expect(message).toContain("@truefoundry/trueforge-core@0.1.4");
     expect(message).toContain("/opt/verdict-node/bin/node");
+    expect(message).toContain(
+      `<trusted_reproduction>${buildTrustedReproductionCommand("trueforge-417-v1")}</trusted_reproduction>`,
+    );
+    expect(message).toContain(
+      "execute this exact reproduction command once and unchanged",
+    );
     expect(message).toContain(
       "Do not claim that the full commits are identical or that the package was built from the issue commit.",
     );
