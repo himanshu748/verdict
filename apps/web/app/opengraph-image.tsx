@@ -25,7 +25,6 @@ export default async function OpenGraphImage() {
           width: "100%",
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           alt=""
           height={420}

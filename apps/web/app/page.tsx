@@ -1,7 +1,6 @@
 import {
   ArrowRight,
   ArrowUpRight,
-  CheckSquare,
   ClipboardText,
   Crosshair,
   Article,
@@ -137,7 +136,13 @@ export default function HomePage() {
       <header className={styles.header}>
         <nav aria-label="Primary" className={styles.nav}>
           <a className={styles.brand} href="#top" aria-label="Verdict home">
-            <CheckSquare aria-hidden="true" size={25} weight="regular" />
+            <Image
+              alt=""
+              className={styles.brandMark}
+              height={64}
+              src="/verdict-logo.png"
+              width={64}
+            />
             <span>Verdict</span>
           </a>
 
@@ -167,6 +172,14 @@ export default function HomePage() {
       <main id="main-content">
         <section className={styles.hero} id="top">
           <div className={styles.heroCopy}>
+            <Image
+              alt="Verdict"
+              className={styles.heroMark}
+              height={320}
+              priority
+              src="/verdict-logo.png"
+              width={320}
+            />
             <p className={styles.eyebrow}>Reproduction agent for flaky bugs</p>
             <h1>
               <span>Find the exact</span>
@@ -225,37 +238,17 @@ export default function HomePage() {
               times. The count in the corner is how many of those runs
               reproduced the bug. Select a cell and you see the command that
               produced it, the exit code and the commit it ran against. The
-              board below is the bundled fixture, and its numbers are generated
-              rather than executed.
+              bundled case is a fixture, and its numbers are generated rather
+              than executed.
             </p>
           </div>
 
-          <figure className={styles.productFrame} data-reveal>
-            <div className={styles.frameBar}>
-              <span className={styles.frameDots} aria-hidden="true" />
-              <span className={styles.frameUrl}>verdict / case / TF-417</span>
-              <a className={styles.frameLink} href="/case/demo">
-                Open it
-                <ArrowUpRight aria-hidden="true" size={14} />
-              </a>
-            </div>
-            <Image
-              alt="The Verdict case workspace showing a twelve condition matrix and the evidence record for the pinned condition."
-              className={`${styles.productShot} ${styles.productShotDark}`}
-              height={900}
-              sizes="(max-width: 1023px) 100vw, 1100px"
-              src="/workspace-dark.jpg"
-              width={1440}
-            />
-            <Image
-              alt=""
-              className={`${styles.productShot} ${styles.productShotLight}`}
-              height={900}
-              sizes="(max-width: 1023px) 100vw, 1100px"
-              src="/workspace-light.jpg"
-              width={1440}
-            />
-          </figure>
+          <p className={styles.productLink} data-reveal>
+            <a href="/case/demo">
+              Open the case workspace
+              <ArrowUpRight aria-hidden="true" size={18} />
+            </a>
+          </p>
 
           <dl className={styles.statRow} data-reveal>
             {workspaceStats.map(([figure, note]) => (
@@ -410,7 +403,13 @@ export default function HomePage() {
 
       <footer className={styles.footer}>
         <a className={styles.brand} href="#top" aria-label="Verdict home">
-          <CheckSquare aria-hidden="true" size={22} weight="regular" />
+          <Image
+            alt=""
+            className={styles.brandMark}
+            height={64}
+            src="/verdict-logo.png"
+            width={64}
+          />
           <span>Verdict</span>
         </a>
         <span>Evidence first. Human approved.</span>
