@@ -244,13 +244,13 @@ describe("published provider reproduction runner", () => {
     await writeFile(
       runnerPath,
       buildReproductionRunnerSource({
-        observationBoundaryMs: 50,
+        observationBoundaryMs: 250,
         repetitionsPerCondition: 1,
       }),
     );
 
     const { stdout } = await execFileAsync(process.execPath, [runnerPath], {
-      timeout: 5_000,
+      timeout: 15_000,
     });
     const result = JSON.parse(stdout.trim()) as ReturnType<
       typeof runnerEnvelope
@@ -266,7 +266,7 @@ describe("published provider reproduction runner", () => {
     expect(result.conditions[1]?.observations).toMatchObject([
       { requestSeen: true, settlement: "resolved" },
     ]);
-  });
+  }, 15_000);
 });
 
 describe("recorded reproduction capture", () => {

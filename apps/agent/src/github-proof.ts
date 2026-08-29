@@ -1,4 +1,10 @@
 import type { WorkflowDispatchTarget } from "./session.js";
+import {
+  parseRecordedRuntimeEvidence,
+  RECORDED_RUNTIME_EVIDENCE_PATH,
+  TRUSTED_RECORDED_RUNTIME_EVIDENCE,
+  type RecordedRuntimeEvidenceBinding,
+} from "./recorded-runtime-evidence.js";
 
 const GITHUB_API_ROOT = "https://api.github.com";
 const GITHUB_API_VERSION = "2022-11-28";
@@ -50,6 +56,12 @@ export interface WorkflowRunBaseline {
   targetHeadSha: string;
 }
 
+export interface ConfirmedExternalRuntimeEvidence
+  extends RecordedRuntimeEvidenceBinding {
+  gitBlobSha: string;
+  repositoryCommit: string;
+}
+
 export interface ConfirmedWorkflowProof {
   workflowRun: {
     attempt: number;
@@ -68,9 +80,10 @@ export interface ConfirmedWorkflowProof {
   proofArtifact: {
     approvalNonce: string;
     blobSha: string;
+    externalRuntimeEvidence: ConfirmedExternalRuntimeEvidence;
     path: string;
+    runtimeReproducedByThisWorkflow: false;
     sourceIssue: string;
-    sourceIssueRuntimeReproduced: false;
     verificationOutcome: "PASSED";
   };
 }
@@ -167,6 +180,20 @@ function gitCommitUrl(
 
 function gitBlobUrl(target: WorkflowDispatchTarget, blobSha: string): string {
   return `${repositoryApiRoot(target)}/git/blobs/${encodePathSegment(blobSha, "blob SHA")}`;
+}
+
+function repositoryFileUrl(
+  target: WorkflowDispatchTarget,
+  path: string,
+  commitSha: string,
+): string {
+  const encodedPath = path
+    .split("/")
+    .map((segment) => encodePathSegment(segment, "repository file path"))
+    .join("/");
+  const url = new URL(`${repositoryApiRoot(target)}/contents/${encodedPath}`);
+  url.searchParams.set("ref", commitSha);
+  return url.toString();
 }
 
 async function releaseResponseBody(response: Response): Promise<void> {
@@ -425,13 +452,13 @@ function parseSingleParentCommit(value: unknown, expectedSha: string): string {
   return value.parents[0].sha;
 }
 
-function decodeBlob(value: unknown): string {
+function decodeBase64Content(value: unknown, subject: string): string {
   if (
     !isRecord(value) ||
     value.encoding !== "base64" ||
     typeof value.content !== "string"
   ) {
-    throw new Error("GitHub API returned an invalid proof blob.");
+    throw new Error(`GitHub API returned invalid ${subject}.`);
   }
 
   const encoded = value.content.replace(/\s/g, "");
@@ -439,9 +466,101 @@ function decodeBlob(value: unknown): string {
   const normalizedInput = encoded.replace(/=+$/, "");
   const normalizedRoundTrip = decoded.toString("base64").replace(/=+$/, "");
   if (normalizedInput !== normalizedRoundTrip) {
-    throw new Error("GitHub API returned invalid base64 proof content.");
+    throw new Error(`GitHub API returned invalid base64 ${subject}.`);
   }
   return decoded.toString("utf8");
+}
+
+function decodeProofBlob(value: unknown): string {
+  return decodeBase64Content(value, "proof blob");
+}
+
+function decodeRuntimeEvidenceFile(
+  value: unknown,
+  expectedPath: string,
+  expectedBlobSha: string,
+): string {
+  if (
+    !isRecord(value) ||
+    value.type !== "file" ||
+    value.path !== expectedPath ||
+    value.sha !== expectedBlobSha
+  ) {
+    throw new Error(
+      "The recorded runtime evidence Git blob does not match the proof reference.",
+    );
+  }
+  return decodeBase64Content(value, "recorded runtime evidence content");
+}
+
+function parseExternalRuntimeEvidenceReference(
+  value: unknown,
+  run: WorkflowRunRecord,
+): ConfirmedExternalRuntimeEvidence {
+  if (!isRecord(value)) {
+    throw new Error("The proof artifact externalRuntimeEvidence is invalid.");
+  }
+  const expectedKeys = [
+    "canonicalSha256",
+    "gitBlobSha",
+    "hunterThreadId",
+    "path",
+    "provider",
+    "repositoryCommit",
+    "responsiveControls",
+    "sourceManifestId",
+    "stalledRuns",
+    "trueForgeSessionId",
+    "verdict",
+  ].sort();
+  if (JSON.stringify(Object.keys(value).sort()) !== JSON.stringify(expectedKeys)) {
+    throw new Error("The proof artifact externalRuntimeEvidence is invalid.");
+  }
+  const checks: Array<[string, unknown, unknown]> = [
+    ["path", value.path, RECORDED_RUNTIME_EVIDENCE_PATH],
+    ["repositoryCommit", value.repositoryCommit, run.headSha],
+    [
+      "canonicalSha256",
+      value.canonicalSha256,
+      TRUSTED_RECORDED_RUNTIME_EVIDENCE.canonicalSha256,
+    ],
+    ["verdict", value.verdict, TRUSTED_RECORDED_RUNTIME_EVIDENCE.verdict],
+    [
+      "trueForgeSessionId",
+      value.trueForgeSessionId,
+      TRUSTED_RECORDED_RUNTIME_EVIDENCE.trueForgeSessionId,
+    ],
+    [
+      "hunterThreadId",
+      value.hunterThreadId,
+      TRUSTED_RECORDED_RUNTIME_EVIDENCE.hunterThreadId,
+    ],
+    [
+      "sourceManifestId",
+      value.sourceManifestId,
+      TRUSTED_RECORDED_RUNTIME_EVIDENCE.sourceManifestId,
+    ],
+    ["provider", value.provider, TRUSTED_RECORDED_RUNTIME_EVIDENCE.provider],
+    ["stalledRuns", value.stalledRuns, 10],
+    ["responsiveControls", value.responsiveControls, 10],
+  ];
+  const mismatch = checks.find(([, actual, expected]) => actual !== expected);
+  if (mismatch) {
+    throw new Error(
+      `The proof artifact externalRuntimeEvidence field ${mismatch[0]} is invalid.`,
+    );
+  }
+  if (typeof value.gitBlobSha !== "string" || !/^[a-f0-9]{40}$/.test(value.gitBlobSha)) {
+    throw new Error(
+      "The proof artifact externalRuntimeEvidence field gitBlobSha is invalid.",
+    );
+  }
+
+  return {
+    ...TRUSTED_RECORDED_RUNTIME_EVIDENCE,
+    gitBlobSha: value.gitBlobSha,
+    repositoryCommit: run.headSha,
+  };
 }
 
 function parseAndValidateProofDocument(
@@ -449,7 +568,7 @@ function parseAndValidateProofDocument(
   target: WorkflowDispatchTarget,
   run: WorkflowRunRecord,
   expectedSourceIssue: string,
-): void {
+): ConfirmedExternalRuntimeEvidence {
   let parsed: unknown;
   try {
     parsed = JSON.parse(content) as unknown;
@@ -465,12 +584,13 @@ function parseAndValidateProofDocument(
     "commit",
     "createdAt",
     "evidenceMode",
+    "externalRuntimeEvidence",
     "kind",
+    "runtimeReproducedByThisWorkflow",
     "runAttempt",
     "runId",
     "schemaVersion",
     "sourceIssue",
-    "sourceIssueRuntimeReproduced",
     "verificationCommand",
     "verificationOutcome",
     "workflow",
@@ -480,12 +600,16 @@ function parseAndValidateProofDocument(
   }
 
   const checks: Array<[string, unknown, unknown]> = [
-    ["schemaVersion", parsed.schemaVersion, 1],
+    ["schemaVersion", parsed.schemaVersion, 2],
     ["kind", parsed.kind, PROOF_KIND],
     ["evidenceMode", parsed.evidenceMode, PROOF_MODE],
     ["approvalNonce", parsed.approvalNonce, target.approvalNonce],
     ["sourceIssue", parsed.sourceIssue, expectedSourceIssue],
-    ["sourceIssueRuntimeReproduced", parsed.sourceIssueRuntimeReproduced, false],
+    [
+      "runtimeReproducedByThisWorkflow",
+      parsed.runtimeReproducedByThisWorkflow,
+      false,
+    ],
     ["verificationCommand", parsed.verificationCommand, PROOF_COMMAND],
     ["verificationOutcome", parsed.verificationOutcome, "PASSED"],
     ["workflow", parsed.workflow, PROOF_WORKFLOW_NAME],
@@ -503,6 +627,10 @@ function parseAndValidateProofDocument(
   ) {
     throw new Error("The proof artifact field createdAt is invalid.");
   }
+  return parseExternalRuntimeEvidenceReference(
+    parsed.externalRuntimeEvidence,
+    run,
+  );
 }
 
 async function listWorkflowRuns(
@@ -631,11 +759,27 @@ async function verifyProofPull(
     token,
     fetchImpl,
   );
-  parseAndValidateProofDocument(
-    decodeBlob(blobResponse),
+  const externalRuntimeEvidence = parseAndValidateProofDocument(
+    decodeProofBlob(blobResponse),
     target,
     run,
     expectedSourceIssue,
+  );
+  const runtimeEvidenceResponse = await requestGitHubJson(
+    repositoryFileUrl(
+      target,
+      externalRuntimeEvidence.path,
+      externalRuntimeEvidence.repositoryCommit,
+    ),
+    token,
+    fetchImpl,
+  );
+  parseRecordedRuntimeEvidence(
+    decodeRuntimeEvidenceFile(
+      runtimeEvidenceResponse,
+      externalRuntimeEvidence.path,
+      externalRuntimeEvidence.gitBlobSha,
+    ),
   );
 
   return {
@@ -657,8 +801,9 @@ async function verifyProofPull(
       path: proofFile.filename,
       blobSha: proofFile.sha,
       approvalNonce: target.approvalNonce,
+      externalRuntimeEvidence,
+      runtimeReproducedByThisWorkflow: false,
       sourceIssue: expectedSourceIssue,
-      sourceIssueRuntimeReproduced: false,
       verificationOutcome: "PASSED",
     },
   };

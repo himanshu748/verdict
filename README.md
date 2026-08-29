@@ -31,7 +31,7 @@ pnpm test
 pnpm build
 ```
 
-That runs `tsc --noEmit` across the agent and protocol packages, ESLint on the web app, 217 tests and a production Next.js build.
+That runs `tsc --noEmit` across the agent and protocol packages, ESLint on the web app, 219 tests and a production Next.js build.
 
 ## What the demo shows and what it does not
 
@@ -64,7 +64,7 @@ The immutable record is in [`evidence/trueforge-417/reproduction.json`](evidence
 
 Surgeon completed its bounded history pass. Insurance then reached the real TrueForge approval gate. After an explicit maintainer decision, Verdict dispatched the exact nonce-bound target and independently verified [GitHub Actions run 33243548221](https://github.com/himanshu748/verdict/actions/runs/33243548221), [draft pull request #15](https://github.com/himanshu748/verdict/pull/15) and the proof blob at the PR head. The workflow writes only to `himanshu748/verdict`; the upstream TrueForge issue and repository remain read-only evidence sources.
 
-The workflow proof deliberately records `sourceIssueRuntimeReproduced: false`: that workflow verifies the repository integration and publishes a proof document, while the separate immutable artifact above records the provider reproduction. Verdict does not collapse those two claims into one.
+The earlier proof deliberately kept the workflow claim separate from the provider reproduction. The current proof schema makes that boundary explicit with `runtimeReproducedByThisWorkflow: false`, then adds `externalRuntimeEvidence`. The host follows that reference at the exact workflow commit, verifies its Git blob and recomputes the pinned canonical digest before accepting the draft PR. This shows both facts without collapsing them: the TrueForge/Daytona run reproduced the issue, while GitHub Actions verified the backend and published the independently checkable proof.
 
 ## The three-act investigation
 

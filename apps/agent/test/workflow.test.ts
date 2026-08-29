@@ -39,6 +39,10 @@ describe("approved proof workflow", () => {
     expect(verifyJob).toContain("ref: ${{ github.sha }}");
     expect(verifyJob).toContain("persist-credentials: false");
     expect(verifyJob).toContain("pnpm install --frozen-lockfile --ignore-scripts");
+    expect(verifyJob).toContain(
+      "pnpm --silent --filter @verdict/agent verify:runtime-evidence",
+    );
+    expect(verifyJob).toContain("runtime_evidence_git_blob_sha");
     expect(verifyJob).not.toContain("contents: write");
   });
 
@@ -59,7 +63,10 @@ describe("approved proof workflow", () => {
 
   it("labels the artifact honestly and never asserts approval provenance itself", () => {
     expect(workflow).toContain('kind: "VERDICT_WORKFLOW_PROOF"');
-    expect(workflow).toContain("sourceIssueRuntimeReproduced: false");
+    expect(workflow).toContain("runtimeReproducedByThisWorkflow: false");
+    expect(workflow).toContain("externalRuntimeEvidence,");
+    expect(workflow).toContain("RUNTIME_EVIDENCE_CANONICAL_SHA256");
+    expect(workflow).not.toContain("sourceIssueRuntimeReproduced");
     expect(workflow).not.toContain("TRUEFORGE_APPROVED_WORKFLOW_DISPATCH");
     expect(workflow).not.toContain("after an explicit TrueForge approval");
   });
