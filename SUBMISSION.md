@@ -57,8 +57,10 @@ this product exists to argue against.
 Separately, the approval-gated workflow dispatch has been exercised end to end
 against real GitHub: the agent requested a host-authorized workflow, it ran
 under an approval nonce, and the workflow wrote a signed proof back. Those
-proofs record `sourceIssueRuntimeReproduced: false`, because they verify the
-harness rather than the bug.
+proofs record `runtimeReproducedByThisWorkflow: false`, because they verify the
+harness rather than the bug. Their `externalRuntimeEvidence` field binds the
+separate provider reproduction by path, repository commit, Git blob and
+canonical digest.
 
 ## The three acts
 
@@ -67,9 +69,10 @@ GitHub issue -> Hunter (find the trigger) -> Surgeon (localize the change)
              -> Insurance (keep it fixed) -> Maintainer review
 ```
 
-**Hunter** searches only the approved condition space, at most 8 condition cells
-and 3 repetitions per cell, and keeps partial and unresolved runs on the board
-instead of dropping the inconvenient ones.
+**Hunter** may make at most 8 total tool calls. Its pinned runner uses exactly
+two named condition cells, with 10 stalled repetitions and 10 responsive
+repetitions, and keeps partial and unresolved runs on the board instead of
+dropping the inconvenient ones.
 
 **Surgeon** narrows to the smallest suspect range the evidence supports, and a
 static inspection stays visibly distinct from a proven execution boundary. It
@@ -111,4 +114,4 @@ pnpm install --frozen-lockfile
 pnpm lint && pnpm typecheck && pnpm test && pnpm build
 ```
 
-164 tests across the three packages, plus the reproduction verifier above.
+219 tests across the three packages, plus the reproduction verifier above.
