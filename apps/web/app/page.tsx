@@ -195,8 +195,8 @@ export default function HomePage() {
               Nothing is written to your repository without your approval.
             </p>
             <div className={styles.heroActions}>
-              <a className={`${styles.button} ${styles.buttonPrimary}`} href="/case/demo">
-                Open case #417
+              <a className={`${styles.button} ${styles.buttonPrimary}`} href="/case/trueforge-417">
+                See the recorded reproduction
                 <ArrowRight aria-hidden="true" size={18} weight="bold" />
               </a>
               <a className={`${styles.button} ${styles.buttonSecondary}`} href="#method">
@@ -267,7 +267,7 @@ export default function HomePage() {
               produced, and it marks what it could not establish rather than
               quietly leaving it out.
             </p>
-            <a href="/case/demo">
+            <a href="/case/trueforge-417">
               Inspect the full evidence trail
               <ArrowUpRight aria-hidden="true" size={18} />
             </a>
@@ -397,8 +397,8 @@ export default function HomePage() {
             <span>One flaky issue is enough.</span>
             <h2>Bring the bug nobody can reproduce.</h2>
           </div>
-          <a className={`${styles.button} ${styles.buttonPrimary}`} href="/case/demo">
-            Open case #417
+          <a className={`${styles.button} ${styles.buttonPrimary}`} href="/case/trueforge-417">
+            See the recorded reproduction
             <ArrowRight aria-hidden="true" size={18} weight="bold" />
           </a>
         </section>
