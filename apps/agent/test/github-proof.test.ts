@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import {
   captureWorkflowRunBaseline,
@@ -10,7 +11,13 @@ const approvalNonce = "0123456789abcdef0123456789abcdef";
 const dispatchCommitSha = "a".repeat(40);
 const proofCommitSha = "b".repeat(40);
 const proofBlobSha = "c".repeat(40);
+const runtimeEvidenceBlobSha = "d".repeat(40);
 const sourceIssue = "https://github.com/truefoundry/trueforge/issues/417";
+const runtimeEvidencePath = "evidence/trueforge-417/reproduction.json";
+const runtimeEvidenceContent = readFileSync(
+  new URL(`../../../${runtimeEvidencePath}`, import.meta.url),
+  "utf8",
+);
 const token = ["github", "pat", "fixture"].join("_");
 const target: WorkflowDispatchTarget = {
   approvalNonce,
@@ -48,12 +55,26 @@ function proofPath(): string {
 
 function proofDocument(overrides: Record<string, unknown> = {}) {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     kind: "VERDICT_WORKFLOW_PROOF",
     evidenceMode: "INTEGRATION_PROOF",
     approvalNonce,
     sourceIssue,
-    sourceIssueRuntimeReproduced: false,
+    runtimeReproducedByThisWorkflow: false,
+    externalRuntimeEvidence: {
+      path: runtimeEvidencePath,
+      repositoryCommit: dispatchCommitSha,
+      gitBlobSha: runtimeEvidenceBlobSha,
+      canonicalSha256:
+        "a8bb5dd22e083782bd7782fccb0a1343b59fc77ea8525b6358fecc9b5b8baffa",
+      verdict: "REPRODUCED",
+      trueForgeSessionId: "01m16a555jy0b09pp9ze5296ng",
+      hunterThreadId: "8ed4cc99-7c90-48df-bc39-f237c55761af",
+      sourceManifestId: "trueforge-417-v1",
+      provider: "@truefoundry/trueforge-core@0.1.4#DaytonaSandboxProvider",
+      stalledRuns: 10,
+      responsiveControls: 10,
+    },
     verificationCommand: "pnpm --filter @verdict/agent test",
     verificationOutcome: "PASSED",
     workflow: "Verdict approved investigation proof",
@@ -95,6 +116,13 @@ function successfulProofResponses(): Response[] {
     jsonResponse({
       encoding: "base64",
       content: Buffer.from(JSON.stringify(proofDocument())).toString("base64"),
+    }),
+    jsonResponse({
+      type: "file",
+      path: runtimeEvidencePath,
+      sha: runtimeEvidenceBlobSha,
+      encoding: "base64",
+      content: Buffer.from(runtimeEvidenceContent).toString("base64"),
     }),
   ];
 }
@@ -191,11 +219,30 @@ describe("GitHub workflow proof verification", () => {
         blobSha: proofBlobSha,
         approvalNonce,
         sourceIssue,
-        sourceIssueRuntimeReproduced: false,
+        runtimeReproducedByThisWorkflow: false,
+        externalRuntimeEvidence: {
+          path: runtimeEvidencePath,
+          repositoryCommit: dispatchCommitSha,
+          gitBlobSha: runtimeEvidenceBlobSha,
+          canonicalSha256:
+            "a8bb5dd22e083782bd7782fccb0a1343b59fc77ea8525b6358fecc9b5b8baffa",
+          verdict: "REPRODUCED",
+          trueForgeSessionId: "01m16a555jy0b09pp9ze5296ng",
+          hunterThreadId: "8ed4cc99-7c90-48df-bc39-f237c55761af",
+          sourceManifestId: "trueforge-417-v1",
+          provider:
+            "@truefoundry/trueforge-core@0.1.4#DaytonaSandboxProvider",
+          stalledRuns: 10,
+          responsiveControls: 10,
+        },
         verificationOutcome: "PASSED",
       },
     });
     expect(sleep).toHaveBeenCalledOnce();
+    expect(fetchImpl).toHaveBeenLastCalledWith(
+      `https://api.github.com/repos/himanshu748/verdict/contents/${runtimeEvidencePath}?ref=${dispatchCommitSha}`,
+      expect.any(Object),
+    );
   });
 
   it("retries a transient GitHub proof read failure", async () => {
@@ -222,7 +269,7 @@ describe("GitHub workflow proof verification", () => {
     );
 
     expect(proof.workflowRun.id).toBe(202);
-    expect(fetchImpl).toHaveBeenCalledTimes(6);
+    expect(fetchImpl).toHaveBeenCalledTimes(7);
     expect(sleep).toHaveBeenCalledExactlyOnceWith(10);
   });
 
@@ -286,7 +333,7 @@ describe("GitHub workflow proof verification", () => {
     );
 
     expect(proof.workflowRun.id).toBe(202);
-    expect(fetchImpl).toHaveBeenCalledTimes(6);
+    expect(fetchImpl).toHaveBeenCalledTimes(7);
     expect(cancelBody).toHaveBeenCalledOnce();
     expect(sleep).toHaveBeenCalledExactlyOnceWith(10);
   });
@@ -531,7 +578,7 @@ describe("GitHub workflow proof verification", () => {
     responses[4] = jsonResponse({
       encoding: "base64",
       content: Buffer.from(
-        JSON.stringify(proofDocument({ sourceIssueRuntimeReproduced: true })),
+        JSON.stringify(proofDocument({ runtimeReproducedByThisWorkflow: true })),
       ).toString("base64"),
     });
     const fetchImpl = vi.fn(async () => responses.shift()!);
@@ -542,7 +589,52 @@ describe("GitHub workflow proof verification", () => {
         maxPolls: 1,
         pollIntervalMs: 1,
       }),
-    ).rejects.toThrow("sourceIssueRuntimeReproduced");
+    ).rejects.toThrow("runtimeReproducedByThisWorkflow");
+  });
+
+  it("rejects a runtime evidence response that is not the claimed Git blob", async () => {
+    const responses = successfulProofResponses();
+    responses[5] = jsonResponse({
+      type: "file",
+      path: runtimeEvidencePath,
+      sha: "e".repeat(40),
+      encoding: "base64",
+      content: Buffer.from(runtimeEvidenceContent).toString("base64"),
+    });
+    const fetchImpl = vi.fn(async () => responses.shift()!);
+
+    await expect(
+      confirmWorkflowProof(token, target, baseline, sourceIssue, {
+        fetchImpl,
+        maxPolls: 1,
+        pollIntervalMs: 1,
+      }),
+    ).rejects.toThrow("runtime evidence Git blob");
+  });
+
+  it("rejects runtime evidence whose canonical digest no longer matches", async () => {
+    const responses = successfulProofResponses();
+    const tamperedEvidence = JSON.parse(runtimeEvidenceContent) as Record<
+      string,
+      unknown
+    >;
+    tamperedEvidence.capturedAt = "2026-08-29T09:00:00.000Z";
+    responses[5] = jsonResponse({
+      type: "file",
+      path: runtimeEvidencePath,
+      sha: runtimeEvidenceBlobSha,
+      encoding: "base64",
+      content: Buffer.from(JSON.stringify(tamperedEvidence)).toString("base64"),
+    });
+    const fetchImpl = vi.fn(async () => responses.shift()!);
+
+    await expect(
+      confirmWorkflowProof(token, target, baseline, sourceIssue, {
+        fetchImpl,
+        maxPolls: 1,
+        pollIntervalMs: 1,
+      }),
+    ).rejects.toThrow("canonical SHA-256");
   });
 
   it("rejects a PR with extra changed files", async () => {

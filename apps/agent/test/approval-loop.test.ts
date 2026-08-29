@@ -40,7 +40,22 @@ function proof(id: number): ConfirmedWorkflowProof {
       blobSha: "c".repeat(40),
       path: `.verdict/proofs/run-${id}.json`,
       sourceIssue: "https://github.com/truefoundry/trueforge/issues/417",
-      sourceIssueRuntimeReproduced: false,
+      runtimeReproducedByThisWorkflow: false,
+      externalRuntimeEvidence: {
+        path: "evidence/trueforge-417/reproduction.json",
+        repositoryCommit: "a".repeat(40),
+        gitBlobSha: "d".repeat(40),
+        canonicalSha256:
+          "a8bb5dd22e083782bd7782fccb0a1343b59fc77ea8525b6358fecc9b5b8baffa",
+        verdict: "REPRODUCED",
+        trueForgeSessionId: "01m16a555jy0b09pp9ze5296ng",
+        hunterThreadId: "8ed4cc99-7c90-48df-bc39-f237c55761af",
+        sourceManifestId: "trueforge-417-v1",
+        provider:
+          "@truefoundry/trueforge-core@0.1.4#DaytonaSandboxProvider",
+        stalledRuns: 10,
+        responsiveControls: 10,
+      },
       verificationOutcome: "PASSED",
     },
   };

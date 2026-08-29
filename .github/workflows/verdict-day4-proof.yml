@@ -20,6 +20,17 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.run_attempt == 1
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      runtime_evidence_path: ${{ steps.runtime-evidence.outputs.path }}
+      runtime_evidence_git_blob_sha: ${{ steps.runtime-evidence.outputs.git_blob_sha }}
+      runtime_evidence_canonical_sha256: ${{ steps.runtime-evidence.outputs.canonical_sha256 }}
+      runtime_evidence_verdict: ${{ steps.runtime-evidence.outputs.verdict }}
+      runtime_evidence_trueforge_session_id: ${{ steps.runtime-evidence.outputs.trueforge_session_id }}
+      runtime_evidence_hunter_thread_id: ${{ steps.runtime-evidence.outputs.hunter_thread_id }}
+      runtime_evidence_source_manifest_id: ${{ steps.runtime-evidence.outputs.source_manifest_id }}
+      runtime_evidence_provider: ${{ steps.runtime-evidence.outputs.provider }}
+      runtime_evidence_stalled_runs: ${{ steps.runtime-evidence.outputs.stalled_runs }}
+      runtime_evidence_responsive_controls: ${{ steps.runtime-evidence.outputs.responsive_controls }}
     permissions:
       contents: read
     env:
@@ -57,6 +68,34 @@ jobs:
       - name: Verify the Verdict backend
         run: pnpm --filter @verdict/agent test
 
+      - name: Verify and bind the recorded TrueForge runtime evidence
+        id: runtime-evidence
+        shell: bash
+        run: |
+          binding="$(pnpm --silent --filter @verdict/agent verify:runtime-evidence)"
+          evidence_path="$(jq -er '.path' <<<"$binding")"
+          if [[ "$evidence_path" != "evidence/trueforge-417/reproduction.json" ]]; then
+            echo "Unexpected runtime evidence path" >&2
+            exit 1
+          fi
+          git_blob_sha="$(git rev-parse "$GITHUB_SHA:$evidence_path")"
+          if [[ ! "$git_blob_sha" =~ ^[a-f0-9]{40}$ ]]; then
+            echo "Invalid runtime evidence Git blob SHA" >&2
+            exit 1
+          fi
+          {
+            echo "path=$evidence_path"
+            echo "git_blob_sha=$git_blob_sha"
+            echo "canonical_sha256=$(jq -er '.canonicalSha256' <<<"$binding")"
+            echo "verdict=$(jq -er '.verdict' <<<"$binding")"
+            echo "trueforge_session_id=$(jq -er '.trueForgeSessionId' <<<"$binding")"
+            echo "hunter_thread_id=$(jq -er '.hunterThreadId' <<<"$binding")"
+            echo "source_manifest_id=$(jq -er '.sourceManifestId' <<<"$binding")"
+            echo "provider=$(jq -er '.provider' <<<"$binding")"
+            echo "stalled_runs=$(jq -er '.stalledRuns' <<<"$binding")"
+            echo "responsive_controls=$(jq -er '.responsiveControls' <<<"$binding")"
+          } >> "$GITHUB_OUTPUT"
+
   publish-proof:
     if: needs.verify.result == 'success' && github.run_attempt == 1
     needs: verify
@@ -71,6 +110,16 @@ jobs:
       PROOF_BRANCH: verdict/proof-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.approval_nonce }}
       PROOF_FILE: ${{ github.workspace }}/.verdict-proof.json
       PROOF_PATH: .verdict/proofs/run-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.approval_nonce }}.json
+      RUNTIME_EVIDENCE_PATH: ${{ needs.verify.outputs.runtime_evidence_path }}
+      RUNTIME_EVIDENCE_GIT_BLOB_SHA: ${{ needs.verify.outputs.runtime_evidence_git_blob_sha }}
+      RUNTIME_EVIDENCE_CANONICAL_SHA256: ${{ needs.verify.outputs.runtime_evidence_canonical_sha256 }}
+      RUNTIME_EVIDENCE_VERDICT: ${{ needs.verify.outputs.runtime_evidence_verdict }}
+      RUNTIME_EVIDENCE_TRUEFORGE_SESSION_ID: ${{ needs.verify.outputs.runtime_evidence_trueforge_session_id }}
+      RUNTIME_EVIDENCE_HUNTER_THREAD_ID: ${{ needs.verify.outputs.runtime_evidence_hunter_thread_id }}
+      RUNTIME_EVIDENCE_SOURCE_MANIFEST_ID: ${{ needs.verify.outputs.runtime_evidence_source_manifest_id }}
+      RUNTIME_EVIDENCE_PROVIDER: ${{ needs.verify.outputs.runtime_evidence_provider }}
+      RUNTIME_EVIDENCE_STALLED_RUNS: ${{ needs.verify.outputs.runtime_evidence_stalled_runs }}
+      RUNTIME_EVIDENCE_RESPONSIVE_CONTROLS: ${{ needs.verify.outputs.runtime_evidence_responsive_controls }}
 
     steps:
       - name: Build the immutable proof document
@@ -83,13 +132,46 @@ jobs:
 
           node --input-type=module -e '
             import { writeFileSync } from "node:fs";
+            const externalRuntimeEvidence = {
+              path: process.env.RUNTIME_EVIDENCE_PATH,
+              repositoryCommit: process.env.GITHUB_SHA,
+              gitBlobSha: process.env.RUNTIME_EVIDENCE_GIT_BLOB_SHA,
+              canonicalSha256: process.env.RUNTIME_EVIDENCE_CANONICAL_SHA256,
+              verdict: process.env.RUNTIME_EVIDENCE_VERDICT,
+              trueForgeSessionId: process.env.RUNTIME_EVIDENCE_TRUEFORGE_SESSION_ID,
+              hunterThreadId: process.env.RUNTIME_EVIDENCE_HUNTER_THREAD_ID,
+              sourceManifestId: process.env.RUNTIME_EVIDENCE_SOURCE_MANIFEST_ID,
+              provider: process.env.RUNTIME_EVIDENCE_PROVIDER,
+              stalledRuns: Number(process.env.RUNTIME_EVIDENCE_STALLED_RUNS),
+              responsiveControls: Number(process.env.RUNTIME_EVIDENCE_RESPONSIVE_CONTROLS)
+            };
+            const expectedRuntimeEvidence = {
+              path: "evidence/trueforge-417/reproduction.json",
+              canonicalSha256: "a8bb5dd22e083782bd7782fccb0a1343b59fc77ea8525b6358fecc9b5b8baffa",
+              verdict: "REPRODUCED",
+              trueForgeSessionId: "01m16a555jy0b09pp9ze5296ng",
+              hunterThreadId: "8ed4cc99-7c90-48df-bc39-f237c55761af",
+              sourceManifestId: "trueforge-417-v1",
+              provider: "@truefoundry/trueforge-core@0.1.4#DaytonaSandboxProvider",
+              stalledRuns: 10,
+              responsiveControls: 10
+            };
+            for (const [field, expected] of Object.entries(expectedRuntimeEvidence)) {
+              if (externalRuntimeEvidence[field] !== expected) {
+                throw new Error(`Invalid runtime evidence output ${field}`);
+              }
+            }
+            if (!/^[a-f0-9]{40}$/.test(externalRuntimeEvidence.gitBlobSha ?? "")) {
+              throw new Error("Invalid runtime evidence Git blob SHA");
+            }
             const proof = {
-              schemaVersion: 1,
+              schemaVersion: 2,
               kind: "VERDICT_WORKFLOW_PROOF",
               evidenceMode: "INTEGRATION_PROOF",
               approvalNonce: process.env.APPROVAL_NONCE,
               sourceIssue: "https://github.com/truefoundry/trueforge/issues/417",
-              sourceIssueRuntimeReproduced: false,
+              runtimeReproducedByThisWorkflow: false,
+              externalRuntimeEvidence,
               verificationCommand: "pnpm --filter @verdict/agent test",
               verificationOutcome: "PASSED",
               workflow: process.env.GITHUB_WORKFLOW,
@@ -140,7 +222,7 @@ jobs:
             --arg title "chore: record Verdict proof $GITHUB_RUN_ID" \
             --arg head "$PROOF_BRANCH" \
             --arg base "main" \
-            --arg body "This draft PR records a nonce-bound Verdict workflow run and backend verification. It references TrueForge issue #417, but does not claim runtime reproduction, a fix or approval provenance by itself." \
+            --arg body "This real draft PR was created by the approved Verdict workflow after its backend and recorded runtime evidence passed verification. The proof file binds the exact main commit and Git blob to the reproduced TrueForge #417 artifact, TrueForge session, Hunter thread, 10 stalled runs and 10 responsive controls. The GitHub workflow verifies that immutable external reproduction, but does not claim it reran the source issue or fixed it." \
             '{title: $title, head: $head, base: $base, body: $body, draft: true}')"
           pr_url="$(gh api --method POST "repos/$GITHUB_REPOSITORY/pulls" \
             --input - \
