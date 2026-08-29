@@ -15,6 +15,7 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import Image from "next/image";
 import { ExposurePreview } from "@/components/exposure-preview";
+import { HeroTitle } from "@/components/hero-title";
 import { Reveal } from "@/components/reveal";
 import { ThemeToggle } from "@/components/theme-toggle";
 import styles from "./page.module.css";
@@ -181,11 +182,7 @@ export default function HomePage() {
               width={320}
             />
             <p className={styles.eyebrow}>Reproduction agent for flaky bugs</p>
-            <h1>
-              <span>Find the exact</span>
-              <span>condition that</span>
-              <span>makes it fail.</span>
-            </h1>
+            <HeroTitle />
             <p className={styles.heroLede}>
               Some bugs only show up sometimes, so nobody can prove they are
               fixed. Verdict runs your test command again and again under
