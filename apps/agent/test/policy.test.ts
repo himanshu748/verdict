@@ -45,7 +45,7 @@ describe("Verdict TrueForge manifest policy", () => {
       "Call create_sub_agent by itself, never alongside another tool call",
     );
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
-      "no more than 1,800 characters",
+      "no more than 2,400 characters",
     );
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
       "Do not paste the full instructions or prior packet",
@@ -78,7 +78,7 @@ describe("Verdict TrueForge manifest policy", () => {
       "Hunter may execute the trusted source bootstrap command from the host message exactly once and unchanged",
     );
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
-      "installs a checksum-verified Node runtime and the complete immutable npm lock closure",
+      "installs a checksum-verified Node runtime, the complete immutable npm lock closure and the checksum-pinned reproduction runner",
     );
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
       "audits npm signatures, verifies the SLSA package provenance",
@@ -91,6 +91,15 @@ describe("Verdict TrueForge manifest policy", () => {
     );
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
       "Hunter may use at most two sandbox commands",
+    );
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "execute the host-provided trusted reproduction command exactly once and unchanged",
+    );
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "exactly 10 stalled repetitions and exactly 10 responsive repetitions",
+    );
+    expect(VERDICT_AGENT_INSTRUCTIONS).not.toContain(
+      "at most 3 repetitions per cell",
     );
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
       "Before source-level execution, run the trusted source bootstrap unchanged",
@@ -111,7 +120,9 @@ describe("Verdict TrueForge manifest policy", () => {
       "the root's next action must be the same exact actions_run_trigger invocation",
     );
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain("ACT 1, HUNTER");
-    expect(VERDICT_AGENT_INSTRUCTIONS).toContain("at most 8 condition cells");
+    expect(VERDICT_AGENT_INSTRUCTIONS).toContain(
+      "Use only the runner's two named condition cells",
+    );
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain("ACT 2, SURGEON");
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain("at most 12 relevant commits");
     expect(VERDICT_AGENT_INSTRUCTIONS).toContain("ACT 3, INSURANCE");

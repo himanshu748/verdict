@@ -5,6 +5,7 @@ import type {
   TrueForgeApi,
 } from "@truefoundry/trueforge-sdk";
 import { GITHUB_MCP_NAME, VERDICT_AGENT_NAME } from "./policy.js";
+import { buildTrustedReproductionCommand } from "./reproduction-evidence.js";
 import {
   buildSourceBootstrapCommand,
   VERDICT_NODE_BINARY,
@@ -913,9 +914,12 @@ export function buildInvestigationMessage(
     throw new Error("issueNumber must match the trusted source manifest.");
   }
   const bootstrapCommand = buildSourceBootstrapCommand(sourceManifest.id);
+  const reproductionCommand = buildTrustedReproductionCommand(
+    sourceManifest.id,
+  );
   const workflow = assertTrustedWorkflowTarget(workflowTarget);
 
-  return `Investigate GitHub issue ${repository}#${target.issueNumber} at issue commit ${sourceManifest.issueCommit}. Execute Hunter, Surgeon and Insurance in order. Keep observations tied to GitHub evidence and stop at each act's evidence boundary. An explicit unresolved result is a valid act completion when required evidence is unavailable inside the configured research boundary. Trusted source manifest ${sourceManifest.id} executes ${sourceManifest.artifact.spec} with integrity ${sourceManifest.artifact.integrity}. Its npm SLSA provenance names commit ${sourceManifest.artifact.provenanceCommit}, which is not the issue commit. The vulnerable file ${sourceManifest.source.path} has the identical Git blob ${sourceManifest.source.blobSha1} at both commits. Do not claim that the full commits are identical or that the package was built from the issue commit. Hunter must treat this chain as unverified until the bootstrap succeeds. Hunter may execute this exact bootstrap command once and unchanged: <trusted_source_bootstrap>${bootstrapCommand}</trusted_source_bootstrap>. It verifies and installs the complete locked artifact closure without credentials in ${VERDICT_SOURCE_DIR}. Run reproduction code with ${VERDICT_NODE_BINARY} and cwd ${VERDICT_SOURCE_DIR}. The only host-authorized write proposal is run_workflow for ${workflow.owner}/${workflow.repo}, workflow ${workflow.workflowId}, ref ${workflow.ref}, with approval_nonce ${workflow.approvalNonce} and no other inputs. Request approval before dispatch and do not infer success from approval.`;
+  return `Investigate GitHub issue ${repository}#${target.issueNumber} at issue commit ${sourceManifest.issueCommit}. Execute Hunter, Surgeon and Insurance in order. Keep observations tied to GitHub evidence and stop at each act's evidence boundary. An explicit unresolved result is a valid act completion when required evidence is unavailable inside the configured research boundary. Trusted source manifest ${sourceManifest.id} executes ${sourceManifest.artifact.spec} with integrity ${sourceManifest.artifact.integrity}. Its npm SLSA provenance names commit ${sourceManifest.artifact.provenanceCommit}, which is not the issue commit. The vulnerable file ${sourceManifest.source.path} has the identical Git blob ${sourceManifest.source.blobSha1} at both commits. Do not claim that the full commits are identical or that the package was built from the issue commit. Hunter must treat this chain as unverified until the bootstrap succeeds. Hunter may execute this exact bootstrap command once and unchanged: <trusted_source_bootstrap>${bootstrapCommand}</trusted_source_bootstrap>. It verifies and installs the complete locked artifact closure plus the checksum-pinned reproduction runner without credentials in ${VERDICT_SOURCE_DIR}. After bootstrap, Hunter must execute this exact reproduction command once and unchanged: <trusted_reproduction>${reproductionCommand}</trusted_reproduction>. It invokes the published DaytonaSandboxProvider directly for exactly 10 stalled runs and 10 responsive contrasts. The host ignores every other command as reproduction evidence. Run reproduction code with ${VERDICT_NODE_BINARY} and cwd ${VERDICT_SOURCE_DIR}. The only host-authorized write proposal is run_workflow for ${workflow.owner}/${workflow.repo}, workflow ${workflow.workflowId}, ref ${workflow.ref}, with approval_nonce ${workflow.approvalNonce} and no other inputs. Request approval before dispatch and do not infer success from approval.`;
 }
 
 function requirePausedTurnId(projection: VerdictEventProjection): string {

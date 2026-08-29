@@ -1,5 +1,6 @@
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
+import { fileURLToPath } from "node:url";
 import type { TrueForgeApi } from "@truefoundry/trueforge-sdk";
 import { resolveApprovalTurns } from "./approval-loop.js";
 import { createTrueForgeClientFromEnv } from "./client.js";
@@ -19,6 +20,12 @@ import {
   startVerdictInvestigation,
   type VerdictEventProjection,
 } from "./session.js";
+import {
+  captureRecordedReproduction,
+  writeRecordedReproduction,
+  type RecordedReproduction,
+  type RecordedReproductionWriteResult,
+} from "./reproduction-evidence.js";
 import { sanitizeTerminalField } from "./terminal.js";
 import { startWithTransientProviderRetry } from "./transient-retry.js";
 
@@ -47,6 +54,7 @@ function printObservedEvent(
 function printFinalProjection(
   projection: VerdictEventProjection,
   confirmedWorkflowProofs: readonly ConfirmedWorkflowProof[],
+  recordedReproduction: RecordedReproductionWriteResult | null,
 ): void {
   console.log(
     JSON.stringify(
@@ -63,6 +71,7 @@ function printFinalProjection(
         assistantText: projection.assistantText,
         error: projection.error,
         confirmedWorkflowProofs,
+        recordedReproduction,
       },
       null,
       2,
@@ -73,10 +82,36 @@ function printFinalProjection(
 const config = buildVerdictRunConfig();
 const sourceIssueUrl = `https://github.com/${config.investigationTarget.repository}/issues/${config.investigationTarget.issueNumber}`;
 const client = createTrueForgeClientFromEnv();
+const reproductionCaptureState: { current: RecordedReproduction | null } = {
+  current: null,
+};
 const onProjection = (
   projection: VerdictEventProjection,
   event: TrueForgeApi.TurnStreamingEvent,
-) => printObservedEvent(projection, event);
+) => {
+  const captured = captureRecordedReproduction(
+    projection,
+    event,
+    config.investigationTarget,
+  );
+  if (captured) {
+    if (
+      reproductionCaptureState.current &&
+      reproductionCaptureState.current.sessionId === captured.sessionId &&
+      reproductionCaptureState.current.toolResponseEventId !==
+        captured.toolResponseEventId
+    ) {
+      throw new Error(
+        "A Verdict run may record only one trusted reproduction response.",
+      );
+    }
+    reproductionCaptureState.current = captured;
+    console.log(
+      `[reproduction:captured] ${captured.conditions[0]!.classification.observed}/${captured.conditions[0]!.classification.requiredValidRuns} stalled runs matched`,
+    );
+  }
+  printObservedEvent(projection, event);
+};
 
 let projection = await startWithTransientProviderRetry(
   () =>
@@ -173,7 +208,43 @@ if (projection.status === "approval_required") {
   }
 }
 
-printFinalProjection(projection, confirmedWorkflowProofs);
+let recordedReproduction: RecordedReproductionWriteResult | null = null;
+const capturedReproduction = reproductionCaptureState.current;
+if (
+  !capturedReproduction ||
+  capturedReproduction.sessionId !== projection.sessionId
+) {
+  projection = {
+    ...projection,
+    error:
+      "Verdict completed without a host-validated DaytonaSandboxProvider reproduction record.",
+    status: "error",
+  };
+} else {
+  const configuredPath =
+    process.env.VERDICT_REPRODUCTION_EVIDENCE_PATH?.trim();
+  const evidencePath =
+    configuredPath ||
+    fileURLToPath(
+      new URL(
+        `../output/reproductions/${projection.sessionId}.json`,
+        import.meta.url,
+      ),
+    );
+  recordedReproduction = await writeRecordedReproduction(
+    evidencePath,
+    capturedReproduction,
+  );
+  console.log(
+    `[reproduction:recorded] ${recordedReproduction.path} sha256:${recordedReproduction.digestSha256}`,
+  );
+}
+
+printFinalProjection(
+  projection,
+  confirmedWorkflowProofs,
+  recordedReproduction,
+);
 if (projection.status !== "done") {
   process.exitCode = 1;
 }
