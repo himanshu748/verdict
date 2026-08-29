@@ -66,7 +66,7 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Verify the Verdict backend
-        run: pnpm --filter @verdict/agent test
+        run: pnpm turbo run test --filter=@verdict/agent
 
       - name: Verify and bind the recorded TrueForge runtime evidence
         id: runtime-evidence
@@ -172,7 +172,7 @@ jobs:
               sourceIssue: "https://github.com/truefoundry/trueforge/issues/417",
               runtimeReproducedByThisWorkflow: false,
               externalRuntimeEvidence,
-              verificationCommand: "pnpm --filter @verdict/agent test",
+              verificationCommand: "pnpm turbo run test --filter=@verdict/agent",
               verificationOutcome: "PASSED",
               workflow: process.env.GITHUB_WORKFLOW,
               runId: Number(process.env.GITHUB_RUN_ID),

@@ -40,6 +40,12 @@ describe("approved proof workflow", () => {
     expect(verifyJob).toContain("persist-credentials: false");
     expect(verifyJob).toContain("pnpm install --frozen-lockfile --ignore-scripts");
     expect(verifyJob).toContain(
+      "run: pnpm turbo run test --filter=@verdict/agent",
+    );
+    expect(verifyJob).not.toContain(
+      "run: pnpm --filter @verdict/agent test",
+    );
+    expect(verifyJob).toContain(
       "pnpm --silent --filter @verdict/agent verify:runtime-evidence",
     );
     expect(verifyJob).toContain("runtime_evidence_git_blob_sha");

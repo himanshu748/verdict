@@ -67,5 +67,5 @@ Run offline checks with:
 
 ```sh
 pnpm --filter @verdict/agent typecheck
-pnpm --filter @verdict/agent test
+pnpm turbo run test --filter=@verdict/agent
 ```
