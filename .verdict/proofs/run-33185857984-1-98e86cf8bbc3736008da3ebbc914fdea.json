@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "kind": "VERDICT_WORKFLOW_PROOF",
+  "evidenceMode": "INTEGRATION_PROOF",
+  "approvalNonce": "98e86cf8bbc3736008da3ebbc914fdea",
+  "sourceIssue": "https://github.com/truefoundry/trueforge/issues/417",
+  "sourceIssueRuntimeReproduced": false,
+  "verificationCommand": "pnpm --filter @verdict/agent test",
+  "verificationOutcome": "PASSED",
+  "workflow": "Verdict approved investigation proof",
+  "runId": 33185857984,
+  "runAttempt": 1,
+  "commit": "5ede10d165a8455228342bddb038ee8ccc632973",
+  "createdAt": "2026-08-28T15:35:42.819Z"
+}
