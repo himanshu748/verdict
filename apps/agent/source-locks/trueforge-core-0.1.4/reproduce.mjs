@@ -103,6 +103,7 @@ async function observeProvider(condition, runNumber) {
       ? `POST /snapshots observed; provider call remained pending for ${OBSERVATION_BOUNDARY_MS} ms`
       : `POST /snapshots observed; provider resolved with state ${observedResponseState ?? "unknown"}`,
     requestSeen,
+    responseState: observedResponseState,
     runId: `${condition}-${String(runNumber).padStart(2, "0")}`,
     settlement: observedSettlement,
     startedAt,
