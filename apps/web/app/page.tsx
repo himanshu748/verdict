@@ -119,8 +119,8 @@ const faq = [
     "That is a result, and it is reported as one. The matrix keeps not-reproduced, partial and unresolved conditions visible instead of collapsing them into a single confident answer.",
   ],
   [
-    "Why does the demo say conceptual fixture?",
-    "Because the hosted case has not been executed against a live sandbox. Labelling generated data as generated is the same discipline the product applies to its own findings.",
+    "Is the interactive demo real data?",
+    "No, and it says so on every screen. The case workspace you can click through is a fixture with generated numbers. The reproduction above it is not: it was executed against @truefoundry/trueforge-core@0.1.4, and the repository carries the record and a verifier that recomputes its hash. Keeping those two apart is the same discipline the product applies to its own findings.",
   ],
   [
     "What does it need from my repository?",
@@ -276,34 +276,40 @@ export default function HomePage() {
             </a>
           </div>
 
-          <article data-reveal className={styles.dossier} aria-label="Conceptual Verdict record">
+          <article data-reveal className={styles.dossier} aria-label="Recorded Verdict reproduction">
             <header>
               <div>
-                <span>Verdict record</span>
+                <span>Recorded reproduction</span>
                 <strong>TrueForge issue #417</strong>
               </div>
-              <span className={styles.fixtureLabel}>Conceptual fixture, not run</span>
+              <span className={styles.recordedLabel}>Executed, integrity checked</span>
             </header>
             <dl>
               <div>
-                <dt>Outcome</dt>
-                <dd>SIMULATED_REPRODUCTION_PINNED</dd>
+                <dt>Verdict</dt>
+                <dd>REPRODUCED</dd>
               </div>
               <div>
-                <dt>Observed</dt>
-                <dd>10 of 10 generated records</dd>
+                <dt>Failing condition</dt>
+                <dd>
+                  <code>daytona-stalled-endpoint</code>, 10 of 10 runs
+                </dd>
               </div>
               <div>
-                <dt>Condition</dt>
-                <dd><code>750 ms budget / no response</code></dd>
+                <dt>Control condition</dt>
+                <dd>
+                  <code>daytona-responsive-endpoint</code>, 0 of 10 runs
+                </dd>
               </div>
               <div>
-                <dt>Runtime proof</dt>
-                <dd>Not established</dd>
+                <dt>Under test</dt>
+                <dd>
+                  <code>@truefoundry/trueforge-core@0.1.4</code>
+                </dd>
               </div>
             </dl>
             <footer>
-              <span>Schema-valid conceptual data</span>
+              <span>sha256 a8bb5dd2</span>
               <span>Public write disabled</span>
             </footer>
           </article>

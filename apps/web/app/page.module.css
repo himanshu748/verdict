@@ -411,7 +411,8 @@
 
 .dossier header span,
 .dossier footer,
-.fixtureLabel {
+.fixtureLabel,
+.recordedLabel {
   color: var(--muted-text);
   font-family: var(--font-data);
   font-size: 0.64rem;
@@ -425,6 +426,12 @@
 
 .fixtureLabel {
   color: var(--signal);
+  text-align: right;
+}
+
+/* This record was executed, so it does not wear the fixture's warning colour. */
+.recordedLabel {
+  color: var(--clean);
   text-align: right;
 }
 
