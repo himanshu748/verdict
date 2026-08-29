@@ -44,3 +44,10 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      # The reproduction is the strongest claim this repository makes, so the
+      # hash is recomputed here rather than trusted to whoever last ran it.
+      # This runs on main and on pull requests, which is where the trigger
+      # above fires, so a branch with no pull request is not yet checked.
+      - name: Verify the recorded reproduction
+        run: pnpm --filter @verdict/agent verify:runtime-evidence

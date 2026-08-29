@@ -1,5 +1,7 @@
 # Verdict
 
+[![CI](https://github.com/himanshu748/verdict/actions/workflows/ci.yml/badge.svg)](https://github.com/himanshu748/verdict/actions/workflows/ci.yml)
+
 **Bugs are innocent until reproduced.**
 
 Verdict investigates flaky GitHub issues by experiment rather than by inference. You give it an issue, a maintainer-approved command, a bounded set of condition knobs and a run budget. It searches only that space, keeps every run record it produced and returns the smallest condition that met your reproduction threshold, a reviewable suspect range and a regression plan. When the evidence does not support a claim, it says so instead of rounding up to confidence. The only public write stays behind a maintainer's approval.
@@ -31,7 +33,7 @@ pnpm test
 pnpm build
 ```
 
-That runs `tsc --noEmit` across the agent and protocol packages, ESLint on the web app, 219 tests and a production Next.js build.
+That runs `tsc --noEmit` across the agent and protocol packages, ESLint on the web app, 220 tests and a production Next.js build. CI runs the same commands on `main` and on every pull request, and recomputes the reproduction hash, so the claim on the landing page is checked rather than restated.
 
 ## What the demo shows and what it does not
 
