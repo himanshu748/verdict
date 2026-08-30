@@ -157,7 +157,7 @@ packages/protocol  Evidence schemas, reducers and shared domain types
 ## Qodo Code Review Evidence
 
 Every substantive change went through a pull request reviewed by Qodo before
-merge. Twenty are merged. The reviews changed the code, and twice they caught a
+merge. The reviews changed the code, and twice they caught a
 claim rather than a crash, which for this project is the more embarrassing kind:
 
 **[#21](https://github.com/himanshu748/verdict/pull/21), the reproduction is
