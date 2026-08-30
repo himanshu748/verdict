@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 2,
+  "kind": "VERDICT_WORKFLOW_PROOF",
+  "evidenceMode": "INTEGRATION_PROOF",
+  "approvalNonce": "8a6f1d07740f05533fb7da3477eb3f3f",
+  "sourceIssue": "https://github.com/truefoundry/trueforge/issues/417",
+  "runtimeReproducedByThisWorkflow": false,
+  "externalRuntimeEvidence": {
+    "path": "evidence/trueforge-417/reproduction.json",
+    "repositoryCommit": "79703e38790a8df7430a6be07fb826ec638ed716",
+    "gitBlobSha": "6f506a61bb9d3e501bf16f3b544876924794d546",
+    "canonicalSha256": "a8bb5dd22e083782bd7782fccb0a1343b59fc77ea8525b6358fecc9b5b8baffa",
+    "verdict": "REPRODUCED",
+    "trueForgeSessionId": "01m16a555jy0b09pp9ze5296ng",
+    "hunterThreadId": "8ed4cc99-7c90-48df-bc39-f237c55761af",
+    "sourceManifestId": "trueforge-417-v1",
+    "provider": "@truefoundry/trueforge-core@0.1.4#DaytonaSandboxProvider",
+    "stalledRuns": 10,
+    "responsiveControls": 10
+  },
+  "verificationCommand": "pnpm turbo run test --filter=@verdict/agent",
+  "verificationOutcome": "PASSED",
+  "workflow": "Verdict approved investigation proof",
+  "runId": 33246970986,
+  "runAttempt": 1,
+  "commit": "79703e38790a8df7430a6be07fb826ec638ed716",
+  "createdAt": "2026-08-29T10:05:27.044Z"
+}
