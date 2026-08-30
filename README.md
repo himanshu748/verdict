@@ -154,7 +154,7 @@ packages/protocol  Evidence schemas, reducers and shared domain types
 .github            CI, review and repository security workflows
 ```
 
-## Qodo review trail
+## Qodo Code Review Evidence
 
 Every substantive change went through a pull request reviewed by Qodo before
 merge. Twenty are merged. The reviews changed the code, and twice they caught a
@@ -179,6 +179,18 @@ a CSS selector that could never match, left behind when a regex cleanup fused
 two `:global` prefixes onto the following rule. A silent layout bug that testing
 would not have caught.
 
+Every one of those was re-reviewed after the fix and merged only once Qodo
+reported no remaining issues against the final code. [#26](https://github.com/himanshu748/verdict/pull/26)
+is the clearest trail end to end: two findings, both answered, then a follow-up
+review reporting zero bugs, then merge.
+
+One finding was answered by argument rather than code. On
+[#24](https://github.com/himanshu748/verdict/pull/24) Qodo reported that the
+verifier skips branch pushes. That is true, and deliberate: the trigger is
+`main` plus pull requests, and running a full build on every unreviewed branch
+to recompute a hash that cannot change without a file change is waste. The
+README wording was corrected instead of the trigger widened.
+
 Full history: [merged pull requests](https://github.com/himanshu748/verdict/pulls?q=is%3Apr+is%3Amerged),
 and the [first review summary](https://github.com/himanshu748/verdict/pull/1#issuecomment-5407889215)
 with six threads resolved before merge.
@@ -188,6 +200,19 @@ with six threads resolved before merge.
 - GitGuardian checks pull requests for exposed secrets
 
 Built for the WeMakeDevs Agent Harness Hackathon.
+
+## AI assistance disclosure
+
+This project was built with AI coding assistants, primarily Claude Code, used
+for implementation, refactoring and documentation under review.
+
+Every change went through a pull request reviewed by Qodo before merge, and the
+findings above are the record of that. The architecture decisions are mine: the
+three-act structure where each act may claim less than the last, the refusal to
+report a reproduction without a contrasting non-failing condition, and the
+separation between the executed record and the labelled fixture. Where the
+assistant produced something that overstated what had been observed, the reviews
+above show it being corrected rather than shipped.
 
 ## License
 
