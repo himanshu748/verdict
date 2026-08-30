@@ -214,6 +214,11 @@ separation between the executed record and the labelled fixture. Where the
 assistant produced something that overstated what had been observed, the reviews
 above show it being corrected rather than shipped.
 
+The demo video's voiceover is synthesised with Deepgram Aura, from a script
+written for it. The footage under that narration is not synthesised: it is a
+screen capture of the recorded reproduction in this repository and of the
+verifier recomputing its hash.
+
 ## License
 
 MIT
