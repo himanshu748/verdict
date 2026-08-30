@@ -229,3 +229,11 @@
 .footer a {
   color: var(--signal);
 }
+
+/* The digest is 64 characters and must stay copyable, so it wraps rather than
+   overflowing its column. */
+.hash {
+  overflow-wrap: anywhere;
+  font-size: 0.76rem;
+  line-height: 1.5;
+}

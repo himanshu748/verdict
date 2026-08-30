@@ -162,7 +162,8 @@ claim rather than a crash, which for this project is the more embarrassing kind:
 
 **[#21](https://github.com/himanshu748/verdict/pull/21), the reproduction is
 real.** The landing page still read `SIMULATED_REPRODUCTION_PINNED` with runtime
-proof not established, months after the recorded reproduction had landed. The
+proof not established, hours after the recorded reproduction had landed on the
+same day. The
 card now shows what was executed, and the FAQ keeps the line between the
 executed record and the clickable fixture rather than blurring it.
 
