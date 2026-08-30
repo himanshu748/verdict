@@ -37,7 +37,11 @@ export default function RecordedCasePage() {
           <div>
             <dt>Integrity</dt>
             <dd>
-              <code>{integrity.algorithm} {integrity.evidenceSha256.slice(0, 16)}…</code>
+              {/* The whole digest, because a prefix is not something a reader
+                  can check the artifact against. */}
+              <code className={styles.hash}>
+                {integrity.algorithm} {integrity.evidenceSha256}
+              </code>
             </dd>
           </div>
         </dl>

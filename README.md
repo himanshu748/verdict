@@ -37,9 +37,13 @@ That runs `tsc --noEmit` across the agent and protocol packages, ESLint on the w
 
 ## What the demo shows and what it does not
 
-The hosted case is a **conceptual fixture** built from [TrueForge issue #417](https://github.com/truefoundry/trueforge/issues/417). Every generated value is labelled as generated throughout the interface, and the workspace states plainly that its displayed matrix is not live execution data.
+Two pages, and the difference between them is the whole argument.
 
-This matters more than it sounds. A tool whose entire argument is "do not believe a claim without a record" cannot present modelled data as observation. The repository now contains a separate, machine-readable backend reproduction from a live TrueForge session. The hosted workspace stays labelled until it is wired to that artifact rather than quietly swapping generated UI data for observed data.
+[**/case/trueforge-417**](https://verdict-steel.vercel.app/case/trueforge-417) is the executed record, rendered from [`evidence/trueforge-417/reproduction.json`](evidence/trueforge-417/reproduction.json) rather than from generated data. It shows the verdict, the integrity hash, both conditions and all twenty runs with the command each one executed. `daytona-stalled-endpoint` reproduced on 10 of 10 runs, `daytona-responsive-endpoint` on 0 of 10. The contrast is what separates a reproduction from a flake.
+
+[**/case/demo**](https://verdict-steel.vercel.app/case/demo) is the interactive workspace, and it is a **conceptual fixture** built from [TrueForge issue #417](https://github.com/truefoundry/trueforge/issues/417). Every generated value is labelled as generated, and the workspace states plainly that its matrix is not live execution data.
+
+A tool whose entire argument is "do not believe a claim without a record" cannot present modelled data as observation. So the record leads and the fixture says what it is. The workspace is not wired to the artifact because the recorded evidence contains conditions and run records but not the history range or suspect-commit data those panels display, and generating the missing half to fill a nicer-looking screen is the exact failure this project exists to catch.
 
 What you can inspect right now:
 
@@ -150,11 +154,37 @@ packages/protocol  Evidence schemas, reducers and shared domain types
 .github            CI, review and repository security workflows
 ```
 
-## Review trail
+## Qodo review trail
 
-- [Qodo review summary](https://github.com/himanshu748/verdict/pull/1#issuecomment-5407889215), updated through the final reviewed commit
-- Six Qodo review threads resolved before merge
-- GitHub CI runs lint, typecheck, tests and the production build from a clean checkout
+Every substantive change went through a pull request reviewed by Qodo before
+merge. Twenty are merged. The reviews changed the code, and twice they caught a
+claim rather than a crash, which for this project is the more embarrassing kind:
+
+**[#21](https://github.com/himanshu748/verdict/pull/21), the reproduction is
+real.** The landing page still read `SIMULATED_REPRODUCTION_PINNED` with runtime
+proof not established, hours after the recorded reproduction had landed on the
+same day. The
+card now shows what was executed, and the FAQ keeps the line between the
+executed record and the clickable fixture rather than blurring it.
+
+**[#24](https://github.com/himanshu748/verdict/pull/24), CI verifies the claim.**
+CI ran lint, typecheck, 220 tests and a build, then took the recorded verdict on
+faith. It now recomputes the reproduction hash. Qodo then caught the pull
+request's own wording: it claimed verification on every push when the workflow
+triggers on `main` and pull requests, so a branch push is not covered. The
+wording was corrected rather than the trigger widened.
+
+**[#20](https://github.com/himanshu748/verdict/pull/20), the logo.** Qodo found
+a CSS selector that could never match, left behind when a regex cleanup fused
+two `:global` prefixes onto the following rule. A silent layout bug that testing
+would not have caught.
+
+Full history: [merged pull requests](https://github.com/himanshu748/verdict/pulls?q=is%3Apr+is%3Amerged),
+and the [first review summary](https://github.com/himanshu748/verdict/pull/1#issuecomment-5407889215)
+with six threads resolved before merge.
+
+- GitHub CI runs lint, typecheck, tests, the production build and the
+  reproduction verifier from a clean checkout
 - GitGuardian checks pull requests for exposed secrets
 
 Built for the WeMakeDevs Agent Harness Hackathon.
