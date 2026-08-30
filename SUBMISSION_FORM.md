@@ -74,7 +74,7 @@ is checked rather than asserted.
 ## How did you use Qodo in your project?
 
 Every substantive change went through a pull request reviewed by Qodo before
-merge, twenty merged in total. Twice it caught a claim rather than a crash,
+merge. Twice it caught a claim rather than a crash,
 which for this project is the worse kind.
 
 - **[#21](https://github.com/himanshu748/verdict/pull/21)** the landing page
